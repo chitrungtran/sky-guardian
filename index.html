@@ -29,7 +29,6 @@
         .spinner { width: 24px; height: 24px; border: 4px solid rgba(0,0,0,0.1); border-left-color: #09f; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
         .avatar-container:hover .avatar-overlay { opacity: 1; }
-        /* Hiệu ứng sự kiện */
         .event-card { background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%); }
     </style>
 </head>
@@ -38,7 +37,7 @@
 
     <script type="text/babel">
         // ==========================================================================================
-        // MODULE 0: CORE & CONFIG & UTILS (CẤU HÌNH CƠ BẢN)
+        // MODULE 0: CORE & CONFIG & UTILS
         // ==========================================================================================
         const firebaseConfig = { apiKey: "AIzaSyD-FAKE-KEY", authDomain: "demo.firebaseapp.com", projectId: "demo", storageBucket: "demo.appspot.com", messagingSenderId: "123", appId: "1:123:web:abc" };
         if (!firebase.apps.length) try { firebase.initializeApp(firebaseConfig); } catch (e) { console.warn("Firebase Mock Mode"); }
@@ -47,24 +46,24 @@
 
         const DEFAULT_CONFIG = {
             planes: [
-                { id: 'p1', name: 'Mô hình giấy', speed: 4, fireRate: 20, hp: 3, price: 0, color: '#EF4444', image: null }, 
-                { id: 'p2', name: 'Chiến cơ Ghibli', speed: 6, fireRate: 15, hp: 5, price: 1000, color: '#3B82F6', image: null }, 
-                { id: 'p3', name: 'Hủy diệt hạm', speed: 8, fireRate: 10, hp: 8, price: 5000, color: '#10B981', image: null } 
+                { id: 'p1', name: 'Mô hình giấy', speed: 4, hp: 3, price: 0, color: '#EF4444', image: null }, 
+                { id: 'p2', name: 'Chiến cơ Ghibli', speed: 6, hp: 5, price: 1000, color: '#3B82F6', image: null }, 
+                { id: 'p3', name: 'Hủy diệt hạm', speed: 8, hp: 8, price: 5000, color: '#10B981', image: null } 
             ],
             items: [
-                { id: 'w1', name: 'Súng máy cơ bản', type: 'weapon', price: 0, value: 1, image: null, description: 'Súng mặc định.' },
-                { id: 'w2', name: 'Laser Plasma', type: 'weapon', price: 2000, value: 3, image: null, description: 'Bắn tia laser xuyên thấu.' },
+                { id: 'w1', name: 'Súng máy cơ bản', type: 'weapon', price: 0, value: 1, fireRate: 20, bulletSpeed: 10, image: null, description: 'Súng mặc định.' },
+                { id: 'w2', name: 'Laser Plasma', type: 'weapon', price: 2000, value: 1, fireRate: 5, bulletSpeed: 30, image: null, description: 'Bắn tia laser cực nhanh nhưng yếu.' },
                 { id: 's1', name: 'Khiên Plasma', type: 'shield', price: 200, value: 5, image: null, description: 'Bảo vệ trong 5 giây.' },
-                { id: 'b1', name: 'Bom Nguyên Tử', type: 'bomb', price: 500, value: 10, image: null, description: 'Xóa sổ mọi kẻ thù.' }
+                { id: 'b1', name: 'Bom Nguyên Tử', type: 'bomb', price: 500, value: 10, radius: 10, image: null, description: 'Xóa sổ diện rộng.' },
+                { id: 'm1', name: 'Tên Lửa Tầm Nhiệt', type: 'missile', price: 1500, value: 4, fireRate: 60, bulletSpeed: 5, trackingTime: 3, image: null, description: 'Dí theo mục tiêu 3s.' }
             ],
             events: [
                 { id: 'ev1', name: 'Khuyến mãi nạp đầu', description: 'Tặng ngay 5000 vàng cho lần đăng nhập đầu tiên trong ngày!', active: true, bonusGold: 5000, type: 'login_bonus' }
             ]
         };
 
-        const generateGeminiContent = async (prompt) => { /* ... Gemini Logic ... */ return "AI: Đang bảo trì."; };
+        const generateGeminiContent = async (prompt) => { return "AI: Đang bảo trì."; };
 
-        // --- ICONS (SVG) ---
         const IconBase = ({ d, size = 24, color = "currentColor", className = "" }) => (
             <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
                 {Array.isArray(d) ? d.map((path, i) => <path key={i} d={path} />) : <path d={d} />}
@@ -93,20 +92,21 @@
             Upload: (p) => <IconBase {...p} d={["M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4", "M17 8l-5-5-5 5", "M12 3v12"]} />,
             Weapon: (p) => <IconBase {...p} d={["M6 9H2v2h4V9zm8-2h-2v4h2V7zm4-4h-2v8h2V3zM4 19h10v2H4v-2zm16-6h-4v2h4v-2z"]} />,
             Gift: (p) => <IconBase {...p} d={["M20 12v10H4V12", "M2 7h20v5H2z", "M12 22V7", "M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z", "M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"]} />,
+            Missile: (p) => <IconBase {...p} d={["M12 2l-2 6h4l-2-6z", "M10 8h4v10h-4z", "M8 18l4 4 4-4"]} />, 
         };
 
         const { useState, useEffect, useRef, useMemo } = React;
-        const { Plane, Shield, Bomb, Zap, Settings, LogOut, User, DollarSign, Trophy, ShoppingCart, Play, Edit, Trash2, ShieldCheck, Lock, Mail, Sparkles, Camera, Plus, Upload, Weapon, Gift } = Icons; 
+        const { Plane, Shield, Bomb, Zap, Settings, LogOut, User, DollarSign, Trophy, ShoppingCart, Play, Edit, Trash2, ShieldCheck, Lock, Mail, Sparkles, Camera, Plus, Upload, Weapon, Gift, Missile } = Icons; 
 
         // ==========================================================================================
-        // MODULE 1: USER MANAGEMENT & DATABASE (QUẢN LÝ USER)
+        // MODULE 1: USER MANAGEMENT & DATABASE
         // ==========================================================================================
         const MockDB = {
             users: {
                 'admin_uid': { uid: 'admin_uid', username: 'admin', password: 'qazwsx@12A', email: 'admin@sky.com', role: 'admin', nickname: 'Admin Bất Tử', avatar: null, gold: 999999, level: 99, title: 'Trùm Cuối', planes: ['p1', 'p2', 'p3'], currentPlane: 'p3', currentWeapon: 'w1', inventory: { shields: 99, bombs: 99 }, eventsParticipated: [] }
             },
             currentUser: null,
-            login: async (u, p) => { /* ... Logic Login ... */ 
+            login: async (u, p) => {
                 return new Promise((resolve, reject) => {
                     setTimeout(() => {
                         const usersArr = Object.values(MockDB.users);
@@ -120,7 +120,7 @@
                     }, 500);
                 });
             },
-            register: async (u, p, e) => { /* ... Logic Register ... */ 
+            register: async (u, p, e) => {
                 return new Promise((resolve, reject) => {
                     setTimeout(() => {
                         if (Object.values(MockDB.users).some(usr => usr.username === u)) return reject("Trùng username!");
@@ -133,12 +133,12 @@
             },
             updateUser: (uid, data) => { if (MockDB.users[uid]) MockDB.users[uid] = { ...MockDB.users[uid], ...data }; },
             deleteUser: (uid) => { delete MockDB.users[uid]; },
-            changePassword: async (uid, old, newP) => { /* ... */ return Promise.resolve(true); },
+            changePassword: async (uid, old, newP) => { return Promise.resolve(true); },
             resetPassword: async (e) => { return Promise.resolve("Đã gửi mail!"); }
         };
 
         const Module_Auth = ({ onLogin }) => {
-            const [mode, setMode] = useState('login'); // login, register, forgot
+            const [mode, setMode] = useState('login'); 
             const [form, setForm] = useState({ u: '', p: '', e: '' });
             const [msg, setMsg] = useState({ type: '', text: '' });
 
@@ -176,12 +176,11 @@
         };
 
         const Module_UserSettings = ({ user, onUpdate, onClose, onLogout }) => {
-            /* ... (Giữ nguyên logic setting cũ nhưng gọn hơn) ... */
             return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"><div className="bg-white p-6 rounded-2xl w-96"><h2 className="font-bold text-xl mb-4">Cài đặt</h2><button onClick={onLogout} className="text-red-500">Đăng xuất</button><button onClick={onClose} className="ml-4">Đóng</button></div></div>;
         };
 
         // ==========================================================================================
-        // MODULE 2: BASE GAME (ENGINE GAME)
+        // MODULE 2: BASE GAME
         // ==========================================================================================
         const Module_Game = ({ user, config, onExit, onGameOver }) => {
             const canvasRef = useRef(null);
@@ -228,35 +227,60 @@
                     if (planeImagesRef.current[user.currentPlane]) ctx.drawImage(planeImagesRef.current[user.currentPlane], state.player.x - 25, state.player.y - 25, 50, 50);
                     else { ctx.fillStyle = state.player.color; ctx.fillRect(state.player.x - 25, state.player.y - 25, 50, 50); }
 
-                    // Shoot
-                    if (state.frames % currentPlaneStats.fireRate === 0) {
-                        state.bullets.push({ x: state.player.x, y: state.player.y - 20, w: 4, h: 10, dmg: currentWeapon.value || 1, color: currentWeapon.id === 'w2' ? '#0f0' : 'orange' });
+                    // Shoot logic
+                    const weaponFireRate = currentWeapon.fireRate || 20;
+                    if (state.frames % weaponFireRate === 0) {
+                        const dmg = currentWeapon.value || 1;
+                        const color = currentWeapon.type === 'missile' ? 'red' : (currentWeapon.id === 'w2' ? '#0f0' : 'orange');
+                        const w = currentWeapon.type === 'missile' ? 8 : 4;
+                        const bSpeed = currentWeapon.bulletSpeed || 10;
+                        state.bullets.push({ x: state.player.x, y: state.player.y - 20, w: w, h: 10, dmg: dmg, color: color, type: currentWeapon.type, tracking: currentWeapon.trackingTime, speed: bSpeed });
                     }
 
-                    // Bullets logic
-                    ctx.fillStyle = 'orange';
-                    state.bullets.forEach((b, i) => {
-                        b.y -= 10; ctx.fillStyle = b.color; ctx.fillRect(b.x, b.y, b.w, b.h);
+                    // Bullets update - Loop backwards to remove safely
+                    for (let i = state.bullets.length - 1; i >= 0; i--) {
+                        let b = state.bullets[i];
+                        if (b.type === 'missile' && b.tracking > 0 && state.enemies.length > 0) {
+                            const target = state.enemies[0];
+                            if (target.x > b.x) b.x += 2;
+                            if (target.x < b.x) b.x -= 2;
+                        }
+                        
+                        b.y -= b.speed; 
+                        ctx.fillStyle = b.color; 
+                        ctx.fillRect(b.x, b.y, b.w, b.h);
                         if(b.y < 0) state.bullets.splice(i, 1);
-                    });
+                    }
 
-                    // Enemy Logic (Simplified)
+                    // Enemy Logic - Loop backwards
                     if (state.frames % 60 === 0) state.enemies.push({ x: Math.random() * canvas.width, y: -20, w: 30, h: 30, hp: 2 });
-                    state.enemies.forEach((e, i) => {
+                    
+                    for (let i = state.enemies.length - 1; i >= 0; i--) {
+                        let e = state.enemies[i];
                         e.y += 3; ctx.fillStyle = 'gray'; ctx.fillRect(e.x, e.y, e.w, e.h);
+                        
                         // Collision Bullet-Enemy
-                        state.bullets.forEach((b, bi) => {
+                        for (let j = state.bullets.length - 1; j >= 0; j--) {
+                            let b = state.bullets[j];
                             if (Math.hypot(b.x - e.x, b.y - e.y) < 20) {
-                                e.hp -= b.dmg; state.bullets.splice(bi, 1);
-                                if (e.hp <= 0) { state.enemies.splice(i, 1); state.score += 100; state.gold += 5; }
+                                e.hp -= b.dmg; 
+                                state.bullets.splice(j, 1);
+                                if (e.hp <= 0) { 
+                                    state.enemies.splice(i, 1); 
+                                    state.score += 100; 
+                                    state.gold += 5; 
+                                    break; // Enemy died, stop checking bullets for this enemy
+                                }
                             }
-                        });
-                        // Collision Player-Enemy
-                        if (Math.hypot(state.player.x - e.x, state.player.y - e.y) < 30) {
-                            state.player.hp--; state.enemies.splice(i, 1);
+                        }
+
+                        // Collision Player-Enemy (if enemy still alive)
+                        if (e.hp > 0 && Math.hypot(state.player.x - e.x, state.player.y - e.y) < 30) {
+                            state.player.hp--; 
+                            state.enemies.splice(i, 1);
                             if (state.player.hp <= 0) { state.gameOver = true; onGameOver(state.score, state.gold); }
                         }
-                    });
+                    }
 
                     // HUD
                     ctx.fillStyle = 'black'; ctx.textAlign = 'left'; ctx.font = '20px Nunito'; ctx.fillText(`Score: ${state.score} | HP: ${state.player.hp}`, 10, 30);
@@ -271,11 +295,11 @@
         };
 
         // ==========================================================================================
-        // MODULE 3: SHOP & INVENTORY (MÁY BAY & TRANG BỊ)
+        // MODULE 3: SHOP & INVENTORY
         // ==========================================================================================
         const Module_Shop = ({ user, config, onPurchase, onBack }) => {
-            const weapons = config.items.filter(i => i.type === 'weapon');
-            const supports = config.items.filter(i => i.type !== 'weapon');
+            const weapons = config.items.filter(i => i.type === 'weapon' || i.type === 'missile');
+            const supports = config.items.filter(i => i.type !== 'weapon' && i.type !== 'missile');
 
             const ItemCard = ({ item, isPlane = false }) => {
                 const isOwned = isPlane ? user.planes.includes(item.id) : false;
@@ -284,15 +308,21 @@
                 return (
                     <div className={`bg-white border rounded-xl p-4 flex flex-col justify-between ${isEquipped ? 'border-green-500 bg-green-50' : ''}`}>
                         <div className="text-center mb-2">
-                            <div className="h-16 flex items-center justify-center">{item.image ? <img src={item.image} className="h-full object-contain"/> : (isPlane ? <Plane/> : <Weapon/>)}</div>
+                            <div className="h-16 flex items-center justify-center">{item.image ? <img src={item.image} className="h-full object-contain"/> : (isPlane ? <Plane/> : (item.type === 'missile' ? <Missile/> : <Weapon/>))}</div>
                             <div className="font-bold">{item.name}</div>
-                            <div className="text-xs text-gray-500">{isPlane ? `HP: ${item.hp}` : `DMG: ${item.value}`}</div>
+                            <div className="text-xs text-gray-500">
+                                {isPlane ? `HP: ${item.hp} | Spd: ${item.speed}` : 
+                                 item.type === 'missile' ? `Dí: ${item.trackingTime}s` :
+                                 item.type === 'bomb' ? `Rộng: ${item.radius}` :
+                                 item.type === 'shield' ? `Time: ${item.value}s` : `DMG: ${item.value}`}
+                            </div>
+                            {(item.type === 'weapon' || item.type === 'missile') && <div className="text-[10px] text-gray-400">Tốc độ bắn: {item.fireRate}</div>}
                         </div>
                         {isPlane ? (
                             isOwned ? <button disabled={isEquipped} onClick={() => onPurchase('equip_plane', item)} className="bg-blue-100 text-blue-600 w-full py-1 rounded">{isEquipped ? 'Đang dùng' : 'Trang bị'}</button>
                             : <button onClick={() => onPurchase('buy_plane', item)} className="bg-yellow-400 text-black w-full py-1 rounded">Mua {item.price}</button>
                         ) : (
-                            item.type === 'weapon' ? 
+                            (item.type === 'weapon' || item.type === 'missile') ? 
                             <button disabled={isEquipped} onClick={() => onPurchase('buy_item', item)} className="bg-orange-500 text-white w-full py-1 rounded">{isEquipped ? 'Đang dùng' : `Mua ${item.price}`}</button>
                             : <button onClick={() => onPurchase('buy_item', item)} className="bg-purple-500 text-white w-full py-1 rounded">Mua (+1) {item.price}</button>
                         )}
@@ -312,11 +342,11 @@
                             <div className="grid grid-cols-3 gap-4">{config.planes.map(p => <ItemCard key={p.id} item={p} isPlane={true} />)}</div>
                         </section>
                         <section>
-                            <h3 className="font-bold text-gray-700 mb-2">Vũ Khí</h3>
+                            <h3 className="font-bold text-gray-700 mb-2">Vũ Khí (Súng & Tên Lửa)</h3>
                             <div className="grid grid-cols-3 gap-4">{weapons.map(w => <ItemCard key={w.id} item={w} />)}</div>
                         </section>
                         <section>
-                            <h3 className="font-bold text-gray-700 mb-2">Hỗ Trợ</h3>
+                            <h3 className="font-bold text-gray-700 mb-2">Hỗ Trợ (Bom & Khiên)</h3>
                             <div className="grid grid-cols-3 gap-4">{supports.map(s => <ItemCard key={s.id} item={s} />)}</div>
                         </section>
                     </div>
@@ -325,7 +355,7 @@
         };
 
         // ==========================================================================================
-        // MODULE 4: EVENTS (SỰ KIỆN GAME)
+        // MODULE 4: EVENTS
         // ==========================================================================================
         const Module_Event = ({ user, config, onClaimEvent }) => {
             const activeEvents = config.events.filter(e => e.active);
@@ -355,13 +385,14 @@
         };
 
         // ==========================================================================================
-        // MODULE 5: ADMIN MANAGEMENT (QUẢN LÝ TỔNG)
+        // MODULE 5: ADMIN MANAGEMENT
         // ==========================================================================================
         const Module_Admin = ({ user, config, allUsers, onUpdateConfig, onUpdateUser, onAddUser, onDeleteUser, onExit }) => {
             const [tab, setTab] = useState('users');
             const [editUser, setEditUser] = useState(null);
             const [showAddUser, setShowAddUser] = useState(false);
             const [newUserForm, setNewUserForm] = useState({ u: '', p: '', e: '' });
+            const [editItem, setEditItem] = useState(null); 
             
             const handleUpload = (e, listName, idx) => {
                 const file = e.target.files[0];
@@ -382,9 +413,30 @@
             };
 
             const deleteItem = (idx) => {
+                if(confirm('Xóa vật phẩm này?')) {
+                    const newItems = [...config.items];
+                    newItems.splice(idx, 1);
+                    onUpdateConfig({ items: newItems });
+                }
+            };
+
+            const saveItem = () => {
                 const newItems = [...config.items];
-                newItems.splice(idx, 1);
+                const index = newItems.findIndex(i => i.id === editItem.id);
+                if (index > -1) { newItems[index] = editItem; } else { newItems.push(editItem); }
                 onUpdateConfig({ items: newItems });
+                setEditItem(null);
+            };
+
+            const addNewItem = () => {
+                setEditItem({
+                    id: 'i' + Date.now(),
+                    name: 'Vật phẩm mới',
+                    type: 'weapon', 
+                    price: 500, value: 1, 
+                    image: null, description: 'Mô tả...',
+                    radius: 2, trackingTime: 2, fireRate: 20, bulletSpeed: 10
+                });
             };
 
             return (
@@ -419,7 +471,6 @@
                                         </div>
                                     </div>
                                 ))}
-                                
                                 {showAddUser && (
                                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
                                         <div className="bg-white p-6 rounded-xl shadow-xl w-96">
@@ -434,7 +485,6 @@
                                         </div>
                                     </div>
                                 )}
-
                                 {editUser && (
                                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
                                         <div className="bg-white p-6 rounded-xl shadow-xl w-96 animate-in fade-in zoom-in duration-200 overflow-y-auto max-h-[80vh]">
@@ -451,18 +501,12 @@
                                             </div>
                                             <div className="flex justify-end gap-2 mt-6">
                                                 <button onClick={() => setEditUser(null)} className="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded">Hủy</button>
-                                                <button 
-                                                    onClick={() => {
-                                                        const updates = { 
-                                                            nickname: editUser.nickname, email: editUser.email, 
-                                                            gold: editUser.gold, level: editUser.level, title: editUser.title 
-                                                        };
+                                                <button onClick={() => {
+                                                        const updates = { nickname: editUser.nickname, email: editUser.email, gold: editUser.gold, level: editUser.level, title: editUser.title };
                                                         if (editUser.newPass) updates.password = editUser.newPass;
                                                         onUpdateUser(editUser.uid, updates);
                                                         setEditUser(null);
-                                                    }}
-                                                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-bold"
-                                                >Lưu</button>
+                                                    }} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-bold">Lưu</button>
                                             </div>
                                         </div>
                                     </div>
@@ -495,34 +539,91 @@
                         )}
                         {tab === 'items' && (
                             <div>
-                                <h3 className="font-bold text-xl mb-4">Danh sách Vật Phẩm</h3>
+                                <div className="flex justify-between items-center mb-6 border-b pb-2">
+                                    <h3 className="font-bold text-xl">Danh sách Vật Phẩm</h3>
+                                    <button onClick={addNewItem} className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded font-bold"><Plus size={16} className="inline"/> Thêm Vật Phẩm</button>
+                                </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     {config.items.map((it, i) => (
-                                        <div key={it.id} className="bg-white p-4 rounded shadow relative group">
+                                        <div key={it.id} className="bg-white p-4 rounded shadow relative group flex flex-col justify-between">
                                             <button onClick={()=>deleteItem(i)} className="absolute top-2 right-2 text-red-500 bg-red-100 p-1 rounded hover:bg-red-200"><Trash2 size={14}/></button>
-                                            <div className="flex gap-2 mb-2">
-                                                <div className="w-10 h-10 border relative cursor-pointer" onClick={()=>document.getElementById(`up_i_${i}`).click()}>
-                                                    {it.image ? <img src={it.image} className="w-full h-full object-contain"/> : <span className="text-xs">Upload</span>}
-                                                    <input type="file" id={`up_i_${i}`} hidden onChange={(e)=>handleUpload(e, 'items', i)} />
+                                            <div className="flex gap-4 mb-2">
+                                                <div className="w-16 h-16 border rounded bg-gray-50 flex items-center justify-center overflow-hidden">
+                                                    {it.image ? <img src={it.image} className="w-full h-full object-contain"/> : (it.type==='missile' ? <Missile/> : (it.type==='weapon' ? <Weapon/> : (it.type==='shield'?<Shield/>:<Bomb/>)))}
                                                 </div>
-                                                <div className="flex-1">
-                                                    <input className="font-bold border-b w-full" value={it.name} onChange={(e)=>{const n=[...config.items];n[i].name=e.target.value;onUpdateConfig({items:n})}} />
-                                                    <select className="text-xs border mt-1" value={it.type} onChange={(e)=>{const n=[...config.items];n[i].type=e.target.value;onUpdateConfig({items:n})}}>
-                                                        <option value="weapon">Vũ khí</option>
-                                                        <option value="shield">Khiên</option>
-                                                        <option value="bomb">Bom</option>
-                                                    </select>
+                                                <div>
+                                                    <div className="font-bold text-lg">{it.name}</div>
+                                                    <div className="text-xs text-gray-500 capitalize">{it.type === 'weapon' ? 'Súng' : (it.type === 'missile' ? 'Tên Lửa' : (it.type === 'shield' ? 'Khiên' : 'Bom'))}</div>
+                                                    <div className="text-sm font-bold text-yellow-600">{it.price} Gold</div>
                                                 </div>
                                             </div>
-                                            <div className="grid grid-cols-2 gap-2 text-sm">
-                                                <div>Giá: <input className="border w-16" type="number" value={it.price} onChange={(e)=>{const n=[...config.items];n[i].price=Number(e.target.value);onUpdateConfig({items:n})}} /></div>
-                                                <div>{it.type==='weapon'?'DMG':(it.type==='shield'?'Time':'Power')}: <input className="border w-12" type="number" value={it.value} onChange={(e)=>{const n=[...config.items];n[i].value=Number(e.target.value);onUpdateConfig({items:n})}} /></div>
+                                            <div className="text-xs text-gray-600 mb-2">
+                                                {(it.type === 'weapon' || it.type === 'missile') && `DMG: ${it.value} | FR: ${it.fireRate}`}
+                                                {it.type === 'shield' && `Thời gian: ${it.value}s`}
+                                                {it.type === 'bomb' && `Sức nổ: ${it.value} | Rộng: ${it.radius}`}
                                             </div>
-                                            <textarea className="w-full text-xs border mt-2 p-1 h-12" value={it.description} onChange={(e)=>{const n=[...config.items];n[i].description=e.target.value;onUpdateConfig({items:n})}}></textarea>
+                                            <button onClick={()=>setEditItem(it)} className="bg-blue-100 text-blue-600 w-full py-1 rounded text-sm font-bold hover:bg-blue-200">Sửa</button>
                                         </div>
                                     ))}
-                                    <button onClick={()=>onUpdateConfig({items:[...config.items, {id:'i'+Date.now(), name:'New Item', type:'weapon', price:500, value:1, description:'New item'}]})} className="bg-purple-500 text-white rounded p-4 flex items-center justify-center font-bold text-xl">+</button>
                                 </div>
+                                {editItem && (
+                                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                                        <div className="bg-white p-6 rounded-xl shadow-xl w-96 animate-in fade-in zoom-in duration-200">
+                                            <h3 className="font-bold text-lg mb-4">Chỉnh sửa / Tạo Vật Phẩm</h3>
+                                            <div className="flex justify-center mb-4">
+                                                <div className="w-20 h-20 bg-gray-100 rounded border border-dashed border-gray-400 flex items-center justify-center cursor-pointer relative overflow-hidden" onClick={()=>document.getElementById('edit-item-img').click()}>
+                                                    {editItem.image ? <img src={editItem.image} className="w-full h-full object-contain"/> : <span className="text-xs text-gray-400">Ảnh PNG</span>}
+                                                    <input type="file" id="edit-item-img" hidden accept="image/png" onChange={(e)=>{
+                                                        const file = e.target.files[0];
+                                                        if(file){
+                                                            const reader = new FileReader();
+                                                            reader.onloadend = () => setEditItem({...editItem, image: reader.result});
+                                                            reader.readAsDataURL(file);
+                                                        }
+                                                    }} />
+                                                </div>
+                                            </div>
+                                            <div className="space-y-3">
+                                                <div><label className="text-xs font-bold text-gray-500">Tên vật phẩm</label><input className="border rounded p-2 w-full" value={editItem.name} onChange={e=>setEditItem({...editItem, name: e.target.value})} /></div>
+                                                <div>
+                                                    <label className="text-xs font-bold text-gray-500">Loại</label>
+                                                    <select className="border rounded p-2 w-full" value={editItem.type} onChange={e=>setEditItem({...editItem, type: e.target.value})}>
+                                                        <option value="weapon">Súng (Weapon)</option>
+                                                        <option value="missile">Tên Lửa (Missile)</option>
+                                                        <option value="shield">Khiên (Shield)</option>
+                                                        <option value="bomb">Bom (Bomb)</option>
+                                                    </select>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <div className="flex-1"><label className="text-xs font-bold text-gray-500">Giá tiền</label><input type="number" className="border rounded p-2 w-full" value={editItem.price} onChange={e=>setEditItem({...editItem, price: parseInt(e.target.value)})} /></div>
+                                                    {(editItem.type === 'weapon' || editItem.type === 'missile' || editItem.type === 'bomb') && (
+                                                        <div className="flex-1"><label className="text-xs font-bold text-gray-500">Sát thương/Nổ</label><input type="number" className="border rounded p-2 w-full" value={editItem.value} onChange={e=>setEditItem({...editItem, value: parseInt(e.target.value)})} /></div>
+                                                    )}
+                                                    {editItem.type === 'shield' && (
+                                                        <div className="flex-1"><label className="text-xs font-bold text-gray-500">Thời gian (s)</label><input type="number" className="border rounded p-2 w-full" value={editItem.value} onChange={e=>setEditItem({...editItem, value: parseInt(e.target.value)})} /></div>
+                                                    )}
+                                                </div>
+                                                {(editItem.type === 'weapon' || editItem.type === 'missile') && (
+                                                    <div>
+                                                        <div className="mb-2"><label className="text-xs font-bold text-gray-500">Tốc độ bắn (Fire Rate - Thấp = Nhanh)</label><input type="number" className="border rounded p-2 w-full" value={editItem.fireRate || 20} onChange={e=>setEditItem({...editItem, fireRate: parseInt(e.target.value)})} /></div>
+                                                        <div><label className="text-xs font-bold text-gray-500">Tốc độ bay đạn (Projectile Speed - Cao = Nhanh)</label><input type="number" className="border rounded p-2 w-full" value={editItem.bulletSpeed || 10} onChange={e=>setEditItem({...editItem, bulletSpeed: parseInt(e.target.value)})} /></div>
+                                                    </div>
+                                                )}
+                                                {editItem.type === 'missile' && (
+                                                    <div><label className="text-xs font-bold text-gray-500">Thời gian Tracking (s)</label><input type="number" className="border rounded p-2 w-full" value={editItem.trackingTime || 2} onChange={e=>setEditItem({...editItem, trackingTime: parseInt(e.target.value)})} /></div>
+                                                )}
+                                                {editItem.type === 'bomb' && (
+                                                    <div><label className="text-xs font-bold text-gray-500">Phạm vi nổ (Radius 2-10)</label><input type="number" min="2" max="10" className="border rounded p-2 w-full" value={editItem.radius || 2} onChange={e=>setEditItem({...editItem, radius: parseInt(e.target.value)})} /></div>
+                                                )}
+                                                <div><label className="text-xs font-bold text-gray-500">Mô tả</label><input className="border rounded p-2 w-full" value={editItem.description} onChange={e=>setEditItem({...editItem, description: e.target.value})} /></div>
+                                            </div>
+                                            <div className="flex justify-end gap-2 mt-6">
+                                                <button onClick={()=>setEditItem(null)} className="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded">Hủy</button>
+                                                <button onClick={saveItem} className="bg-blue-600 text-white px-4 py-2 rounded font-bold hover:bg-blue-700">Lưu</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
                         {tab === 'events' && (
@@ -542,21 +643,20 @@
                                 ))}
                             </div>
                         )}
-                        {/* Tab Items làm tương tự... */}
                     </div>
                 </div>
             );
         };
 
         // ==========================================================================================
-        // APP ORCHESTRATOR (TRÌNH ĐIỀU PHỐI)
+        // APP ORCHESTRATOR
         // ==========================================================================================
         const App = () => {
             const [user, setUser] = useState(null);
             const [view, setView] = useState('login'); 
             const [config, setConfig] = useState(DEFAULT_CONFIG);
             const [showSettings, setShowSettings] = useState(false);
-            const [dbVersion, setDbVersion] = useState(0); // Force re-render for DB changes
+            const [dbVersion, setDbVersion] = useState(0); 
 
             const handleLogin = (u) => { setUser(u); setView('dashboard'); };
             const handleLogout = () => { setUser(null); setView('login'); setShowSettings(false); };
@@ -567,7 +667,7 @@
                     if (user.gold >= item.price) {
                         newUser.gold -= item.price;
                         if (type === 'buy_plane') newUser.planes.push(item.id);
-                        else if (item.type === 'weapon') { newUser.currentWeapon = item.id; } // Mua súng là trang bị luôn
+                        else if (item.type === 'weapon' || item.type === 'missile') { newUser.currentWeapon = item.id; } 
                         else if (item.type === 'shield') newUser.inventory.shields++;
                         else if (item.type === 'bomb') newUser.inventory.bombs++;
                         alert(`Mua thành công: ${item.name}`);
@@ -597,8 +697,6 @@
             return (
                 <div className="min-h-screen p-4 max-w-6xl mx-auto relative">
                     <div className="cloud-bg"><div className="cloud" style={{width:200,height:200,top:'10%'}}></div></div>
-                    
-                    {/* DASHBOARD HEADER */}
                     <div className="flex justify-between items-start mb-8 relative z-10">
                         <div className="flex items-center gap-4 bg-white/80 p-4 rounded-2xl shadow border-2 border-white">
                             <div className="w-16 h-16 rounded-full bg-gray-300 overflow-hidden">{user.avatar && <img src={user.avatar} className="w-full h-full object-cover"/>}</div>
@@ -612,10 +710,7 @@
                             <button onClick={()=>setShowSettings(true)} className="bg-white p-3 rounded-xl shadow"><Settings/></button>
                         </div>
                     </div>
-
-                    {/* DASHBOARD CONTENT */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
-                        {/* Play Zone */}
                         <div className="md:col-span-2 bg-white/60 p-8 rounded-3xl shadow-xl flex flex-col items-center justify-center min-h-[400px]">
                             {user.role === 'admin' ? 
                                 <div className="text-center"><h2 className="text-3xl font-bold">KHU VỰC QUẢN TRỊ</h2><p>Admin không được chơi game.</p></div> : 
@@ -625,12 +720,8 @@
                                 </>
                             }
                         </div>
-
-                        {/* Sidebar */}
                         <div className="space-y-4">
-                            {/* EVENT MODULE */}
                             <Module_Event user={user} config={config} onClaimEvent={handleClaimEvent} />
-                            
                             <button onClick={()=>setView('shop')} className="w-full bg-white p-6 rounded-2xl shadow hover:scale-105 transition flex items-center justify-between">
                                 <div className="flex items-center gap-4"><div className="bg-yellow-100 p-3 rounded-xl text-yellow-600"><ShoppingCart/></div><span className="font-bold">Cửa hàng</span></div>
                             </button>
@@ -643,8 +734,6 @@
                             </div>
                         </div>
                     </div>
-
-                    {/* OVERLAYS */}
                     {view === 'shop' && <div className="fixed inset-0 z-40 bg-black/50 flex items-center justify-center p-4"><Module_Shop user={user} config={config} onPurchase={handlePurchase} onBack={()=>setView('dashboard')} /></div>}
                     {view === 'admin' && <Module_Admin user={user} config={config} allUsers={MockDB.users} onUpdateConfig={(nc)=>setConfig({...config, ...nc})} onUpdateUser={handleUpdateUser} onAddUser={handleAddUser} onDeleteUser={handleDeleteUser} onExit={()=>setView('dashboard')} />}
                     {showSettings && <Module_UserSettings user={user} onUpdate={(d)=>{const u={...user,...d}; setUser(u); MockDB.updateUser(u.uid, u);}} onLogout={handleLogout} onClose={()=>setShowSettings(false)} />}
