@@ -120,11 +120,11 @@
                     }, 500);
                 });
             },
-            register: async (u, p, e) => {
+            register: async (u, p, e, avatar = null) => {
                 return new Promise((resolve, reject) => {
                     setTimeout(() => {
                         if (Object.values(MockDB.users).some(usr => usr.username === u)) return reject("Trùng username!");
-                        const newUser = { uid: 'u_'+Date.now(), username: u, password: p, email: e, role: 'user', nickname: u, avatar: null, gold: 500, level: 1, title: 'Tân Binh', exp: 0, planes: ['p1'], currentPlane: 'p1', currentWeapon: 'w1', inventory: { shields: 1, bombs: 4 }, eventsParticipated: [] };
+                        const newUser = { uid: 'u_'+Date.now(), username: u, password: p, email: e, role: 'user', nickname: u, avatar: avatar, gold: 500, level: 1, title: 'Tân Binh', exp: 0, planes: ['p1'], currentPlane: 'p1', currentWeapon: 'w1', inventory: { shields: 1, bombs: 4 }, eventsParticipated: [] };
                         MockDB.users[newUser.uid] = newUser;
                         MockDB.currentUser = newUser;
                         resolve(newUser);
@@ -176,7 +176,102 @@
         };
 
         const Module_UserSettings = ({ user, onUpdate, onClose, onLogout }) => {
-            return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"><div className="bg-white p-6 rounded-2xl w-96"><h2 className="font-bold text-xl mb-4">Cài đặt</h2><button onClick={onLogout} className="text-red-500">Đăng xuất</button><button onClick={onClose} className="ml-4">Đóng</button></div></div>;
+            const [activeSection, setActiveSection] = useState('profile');
+            const [newName, setNewName] = useState(user.nickname);
+            const [newEmail, setNewEmail] = useState(user.email);
+            
+            const [oldPass, setOldPass] = useState('');
+            const [newPass, setNewPass] = useState('');
+            const [confirmPass, setConfirmPass] = useState('');
+            const [passError, setPassError] = useState('');
+            const [passSuccess, setPassSuccess] = useState('');
+
+            const fileInputRef = useRef(null);
+
+            const handleAvatarChange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        onUpdate({ avatar: reader.result });
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+
+            const handleChangePassword = async () => {
+                setPassError('');
+                setPassSuccess('');
+                if (newPass !== confirmPass) {
+                    setPassError('Mật khẩu mới không khớp!');
+                    return;
+                }
+                if (newPass.length < 6) {
+                    setPassError('Mật khẩu mới phải từ 6 ký tự!');
+                    return;
+                }
+
+                try {
+                    await MockDB.changePassword(user.uid, oldPass, newPass);
+                    setPassSuccess('Đổi mật khẩu thành công!');
+                    setOldPass('');
+                    setNewPass('');
+                    setConfirmPass('');
+                } catch (err) {
+                    setPassError(err);
+                }
+            };
+
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-2xl w-[500px] overflow-hidden flex flex-col max-h-[90vh]">
+                        <div className="bg-gray-100 p-4 border-b flex justify-between items-center">
+                            <h2 className="text-xl font-bold flex items-center gap-2"><Settings className="text-gray-600"/> Cài đặt Tài Khoản</h2>
+                            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">&times;</button>
+                        </div>
+                        <div className="flex border-b">
+                            <button onClick={() => setActiveSection('profile')} className={`flex-1 py-3 font-bold text-sm ${activeSection === 'profile' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50' : 'text-gray-500 hover:bg-gray-50'}`}>Hồ sơ & Avatar</button>
+                            <button onClick={() => setActiveSection('security')} className={`flex-1 py-3 font-bold text-sm ${activeSection === 'security' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50' : 'text-gray-500 hover:bg-gray-50'}`}>Bảo mật & Mật khẩu</button>
+                        </div>
+                        <div className="p-6 overflow-y-auto">
+                            {activeSection === 'profile' && (
+                                <div className="space-y-6">
+                                    <div className="flex flex-col items-center">
+                                        <div className="relative w-24 h-24 rounded-full bg-gray-200 overflow-hidden cursor-pointer avatar-container shadow-inner border-4 border-white" onClick={() => fileInputRef.current.click()}>
+                                            {user.avatar ? <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center bg-gradient-to-tr from-blue-400 to-purple-500 text-white text-3xl font-bold">{user.nickname.charAt(0).toUpperCase()}</div>}
+                                            <div className="avatar-overlay absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 transition-opacity duration-200"><Camera className="text-white" size={24} /></div>
+                                        </div>
+                                        <input type="file" ref={fileInputRef} onChange={handleAvatarChange} className="hidden" accept="image/*" />
+                                        <span className="text-xs text-blue-500 mt-2 cursor-pointer hover:underline" onClick={() => fileInputRef.current.click()}>Đổi Avatar</span>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <div><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tên hiển thị</label><input value={newName} onChange={(e) => setNewName(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-200 outline-none transition" /></div>
+                                        <div><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Email</label><input value={newEmail} onChange={(e) => setNewEmail(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-200 outline-none transition" /></div>
+                                    </div>
+                                    <button onClick={() => { onUpdate({ nickname: newName, email: newEmail }); alert("Đã cập nhật hồ sơ!"); }} className="w-full py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 shadow-md transition transform hover:scale-[1.02]">Lưu thay đổi hồ sơ</button>
+                                </div>
+                            )}
+                            {activeSection === 'security' && (
+                                <div className="space-y-4">
+                                    {passError && <div className="bg-red-50 text-red-600 p-2 rounded text-sm border border-red-200">{passError}</div>}
+                                    {passSuccess && <div className="bg-green-50 text-green-600 p-2 rounded text-sm border border-green-200">{passSuccess}</div>}
+                                    <div><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Mật khẩu hiện tại</label><input type="password" value={oldPass} onChange={(e) => setOldPass(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-red-200 outline-none transition" placeholder="Nhập mật khẩu cũ..." /></div>
+                                    <div className="border-t pt-4">
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Mật khẩu mới</label>
+                                        <input type="password" value={newPass} onChange={(e) => setNewPass(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-200 outline-none transition mb-2" placeholder="Mật khẩu mới..." />
+                                        <input type="password" value={confirmPass} onChange={(e) => setConfirmPass(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-200 outline-none transition" placeholder="Nhập lại mật khẩu mới..." />
+                                    </div>
+                                    <button onClick={handleChangePassword} className="w-full py-2 bg-gray-800 text-white rounded font-bold hover:bg-black shadow-md transition transform hover:scale-[1.02]">Đổi Mật Khẩu</button>
+                                </div>
+                            )}
+                        </div>
+                        <div className="p-4 bg-gray-50 border-t flex justify-between items-center">
+                            <button onClick={onLogout} className="text-red-600 hover:bg-red-50 px-3 py-1 rounded font-bold text-sm border border-transparent hover:border-red-200 transition"><LogOut size={14} className="inline mr-1"/> Đăng xuất</button>
+                            <button onClick={onClose} className="text-gray-500 hover:text-gray-800 text-sm">Đóng</button>
+                        </div>
+                    </div>
+                </div>
+            );
         };
 
         // ==========================================================================================
@@ -217,17 +312,14 @@
                     state.frames++;
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-                    // Player Move
                     if (keys['ArrowLeft']) state.player.x -= currentPlaneStats.speed;
                     if (keys['ArrowRight']) state.player.x += currentPlaneStats.speed;
                     if (keys['ArrowUp']) state.player.y -= currentPlaneStats.speed;
                     if (keys['ArrowDown']) state.player.y += currentPlaneStats.speed;
 
-                    // Draw Player
                     if (planeImagesRef.current[user.currentPlane]) ctx.drawImage(planeImagesRef.current[user.currentPlane], state.player.x - 25, state.player.y - 25, 50, 50);
                     else { ctx.fillStyle = state.player.color; ctx.fillRect(state.player.x - 25, state.player.y - 25, 50, 50); }
 
-                    // Shoot logic
                     const weaponFireRate = currentWeapon.fireRate || 20;
                     if (state.frames % weaponFireRate === 0) {
                         const dmg = currentWeapon.value || 1;
@@ -237,7 +329,6 @@
                         state.bullets.push({ x: state.player.x, y: state.player.y - 20, w: w, h: 10, dmg: dmg, color: color, type: currentWeapon.type, tracking: currentWeapon.trackingTime, speed: bSpeed });
                     }
 
-                    // Bullets update - Loop backwards to remove safely
                     for (let i = state.bullets.length - 1; i >= 0; i--) {
                         let b = state.bullets[i];
                         if (b.type === 'missile' && b.tracking > 0 && state.enemies.length > 0) {
@@ -252,14 +343,12 @@
                         if(b.y < 0) state.bullets.splice(i, 1);
                     }
 
-                    // Enemy Logic - Loop backwards
                     if (state.frames % 60 === 0) state.enemies.push({ x: Math.random() * canvas.width, y: -20, w: 30, h: 30, hp: 2 });
                     
                     for (let i = state.enemies.length - 1; i >= 0; i--) {
                         let e = state.enemies[i];
                         e.y += 3; ctx.fillStyle = 'gray'; ctx.fillRect(e.x, e.y, e.w, e.h);
                         
-                        // Collision Bullet-Enemy
                         for (let j = state.bullets.length - 1; j >= 0; j--) {
                             let b = state.bullets[j];
                             if (Math.hypot(b.x - e.x, b.y - e.y) < 20) {
@@ -269,12 +358,11 @@
                                     state.enemies.splice(i, 1); 
                                     state.score += 100; 
                                     state.gold += 5; 
-                                    break; // Enemy died, stop checking bullets for this enemy
+                                    break; 
                                 }
                             }
                         }
 
-                        // Collision Player-Enemy (if enemy still alive)
                         if (e.hp > 0 && Math.hypot(state.player.x - e.x, state.player.y - e.y) < 30) {
                             state.player.hp--; 
                             state.enemies.splice(i, 1);
@@ -282,7 +370,6 @@
                         }
                     }
 
-                    // HUD
                     ctx.fillStyle = 'black'; ctx.textAlign = 'left'; ctx.font = '20px Nunito'; ctx.fillText(`Score: ${state.score} | HP: ${state.player.hp}`, 10, 30);
 
                     requestRef.current = requestAnimationFrame(loop);
@@ -391,7 +478,7 @@
             const [tab, setTab] = useState('users');
             const [editUser, setEditUser] = useState(null);
             const [showAddUser, setShowAddUser] = useState(false);
-            const [newUserForm, setNewUserForm] = useState({ u: '', p: '', e: '' });
+            const [newUserForm, setNewUserForm] = useState({ u: '', p: '', e: '', avatar: null });
             const [editItem, setEditItem] = useState(null); 
             
             const handleUpload = (e, listName, idx) => {
@@ -404,6 +491,24 @@
                     onUpdateConfig({ [listName]: newList });
                 };
                 reader.readAsDataURL(file);
+            };
+
+            const handleUserAvatarUpload = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => setEditUser({ ...editUser, avatar: reader.result });
+                    reader.readAsDataURL(file);
+                }
+            };
+
+            const handleNewUserAvatarUpload = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => setNewUserForm({ ...newUserForm, avatar: reader.result });
+                    reader.readAsDataURL(file);
+                }
             };
 
             const toggleEvent = (idx) => {
@@ -430,11 +535,8 @@
 
             const addNewItem = () => {
                 setEditItem({
-                    id: 'i' + Date.now(),
-                    name: 'Vật phẩm mới',
-                    type: 'weapon', 
-                    price: 500, value: 1, 
-                    image: null, description: 'Mô tả...',
+                    id: 'i' + Date.now(), name: 'Vật phẩm mới', type: 'weapon', 
+                    price: 500, value: 1, image: null, description: 'Mô tả...',
                     radius: 2, trackingTime: 2, fireRate: 20, bulletSpeed: 10
                 });
             };
@@ -475,12 +577,19 @@
                                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
                                         <div className="bg-white p-6 rounded-xl shadow-xl w-96">
                                             <h3 className="font-bold text-lg mb-4">Thêm User Mới</h3>
+                                            <div className="flex flex-col items-center mb-4">
+                                                <div className="w-20 h-20 rounded-full bg-gray-200 overflow-hidden border border-gray-300 relative cursor-pointer" onClick={() => document.getElementById('new-user-avatar').click()}>
+                                                    {newUserForm.avatar ? <img src={newUserForm.avatar} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center font-bold text-gray-400"><Camera size={20} /></div>}
+                                                </div>
+                                                <input type="file" id="new-user-avatar" hidden accept="image/*" onChange={handleNewUserAvatarUpload} />
+                                                <span className="text-xs text-blue-500 mt-1 cursor-pointer" onClick={() => document.getElementById('new-user-avatar').click()}>Thêm Avatar</span>
+                                            </div>
                                             <input className="border w-full p-2 mb-2 rounded" placeholder="Username" value={newUserForm.u} onChange={e=>setNewUserForm({...newUserForm, u: e.target.value})} />
                                             <input className="border w-full p-2 mb-2 rounded" placeholder="Password" type="password" value={newUserForm.p} onChange={e=>setNewUserForm({...newUserForm, p: e.target.value})} />
                                             <input className="border w-full p-2 mb-4 rounded" placeholder="Email" value={newUserForm.e} onChange={e=>setNewUserForm({...newUserForm, e: e.target.value})} />
                                             <div className="flex justify-end gap-2">
                                                 <button onClick={()=>setShowAddUser(false)} className="text-gray-500 px-4 py-2">Hủy</button>
-                                                <button onClick={()=>{ onAddUser(newUserForm); setShowAddUser(false); setNewUserForm({u:'',p:'',e:''}); }} className="bg-green-600 text-white px-4 py-2 rounded">Tạo</button>
+                                                <button onClick={()=>{ onAddUser(newUserForm); setShowAddUser(false); setNewUserForm({u:'',p:'',e:'', avatar: null}); }} className="bg-green-600 text-white px-4 py-2 rounded">Tạo</button>
                                             </div>
                                         </div>
                                     </div>
@@ -489,24 +598,27 @@
                                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
                                         <div className="bg-white p-6 rounded-xl shadow-xl w-96 animate-in fade-in zoom-in duration-200 overflow-y-auto max-h-[80vh]">
                                             <h3 className="font-bold text-lg mb-4">Sửa: {editUser.username}</h3>
+                                            <div className="flex flex-col items-center mb-4">
+                                                <div className="w-20 h-20 rounded-full bg-gray-200 overflow-hidden border border-gray-300 relative cursor-pointer" onClick={() => document.getElementById('admin-user-avatar-upload').click()}>
+                                                    {editUser.avatar ? <img src={editUser.avatar} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center font-bold text-xl text-gray-400">{editUser.nickname ? editUser.nickname.charAt(0).toUpperCase() : '?'}</div>}
+                                                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition"><Camera className="text-white" size={20} /></div>
+                                                </div>
+                                                <input type="file" id="admin-user-avatar-upload" hidden accept="image/*" onChange={handleUserAvatarUpload} />
+                                                <span className="text-xs text-blue-500 mt-1 cursor-pointer" onClick={() => document.getElementById('admin-user-avatar-upload').click()}>Đổi Avatar</span>
+                                            </div>
                                             <div className="space-y-3">
                                                 <div><label className="text-xs font-bold text-gray-500">Nickname</label><input className="border rounded p-2 w-full" value={editUser.nickname} onChange={e=>setEditUser({...editUser, nickname: e.target.value})} /></div>
                                                 <div><label className="text-xs font-bold text-gray-500">Email</label><input className="border rounded p-2 w-full" value={editUser.email} onChange={e=>setEditUser({...editUser, email: e.target.value})} /></div>
                                                 <div><label className="text-xs font-bold text-gray-500">Mật khẩu mới (Để trống nếu không đổi)</label><input className="border rounded p-2 w-full" placeholder="Nhập pass mới..." value={editUser.newPass || ''} onChange={e=>setEditUser({...editUser, newPass: e.target.value})} /></div>
                                                 <div className="flex gap-2">
-                                                    <div className="flex-1"><label className="text-xs font-bold text-gray-500">Gold</label><input type="number" className="border rounded p-2 w-full" value={editUser.gold} onChange={e=>setEditUser({...editUser, gold: parseInt(e.target.value)})} /></div>
+                                                    <div className="flex-1"><label className="text-xs font-bold text-gray-500">Gold</label><input type="number" className="border w-full rounded p-2 text-right" value={editUser.gold} onChange={e=>setEditUser({...editUser, gold: parseInt(e.target.value)})} /></div>
                                                     <div className="flex-1"><label className="text-xs font-bold text-gray-500">Level</label><input type="number" className="border rounded p-2 w-full" value={editUser.level} onChange={e=>setEditUser({...editUser, level: parseInt(e.target.value)})} /></div>
                                                 </div>
                                                 <div><label className="text-xs font-bold text-gray-500">Danh hiệu</label><input className="border rounded p-2 w-full" value={editUser.title || ''} onChange={e=>setEditUser({...editUser, title: e.target.value})} /></div>
                                             </div>
                                             <div className="flex justify-end gap-2 mt-6">
                                                 <button onClick={() => setEditUser(null)} className="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded">Hủy</button>
-                                                <button onClick={() => {
-                                                        const updates = { nickname: editUser.nickname, email: editUser.email, gold: editUser.gold, level: editUser.level, title: editUser.title };
-                                                        if (editUser.newPass) updates.password = editUser.newPass;
-                                                        onUpdateUser(editUser.uid, updates);
-                                                        setEditUser(null);
-                                                    }} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-bold">Lưu</button>
+                                                <button onClick={() => { const updates = { nickname: editUser.nickname, email: editUser.email, gold: editUser.gold, level: editUser.level, title: editUser.title, avatar: editUser.avatar }; if (editUser.newPass) updates.password = editUser.newPass; onUpdateUser(editUser.uid, updates); setEditUser(null); }} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-bold">Lưu</button>
                                             </div>
                                         </div>
                                     </div>
@@ -524,12 +636,12 @@
                                                     {p.image ? <img src={p.image} className="w-full h-full object-contain"/> : <span className="text-xs">Upload</span>}
                                                     <input type="file" id={`up_p_${i}`} hidden onChange={(e)=>handleUpload(e, 'planes', i)} />
                                                 </div>
-                                                <input className="font-bold border-b" value={p.name} onChange={(e)=>{const n=[...config.planes];n[i].name=e.target.value;onUpdateConfig({planes:n})}} />
+                                                <input className="font-bold border-b w-full" value={p.name} onChange={(e)=>{const n=[...config.planes];n[i].name=e.target.value;onUpdateConfig({planes:n})}} />
                                             </div>
                                             <div className="grid grid-cols-2 gap-2 text-sm">
-                                                <div>Speed: <input className="border w-12" type="number" value={p.speed} onChange={(e)=>{const n=[...config.planes];n[i].speed=Number(e.target.value);onUpdateConfig({planes:n})}} /></div>
-                                                <div>HP: <input className="border w-12" type="number" value={p.hp} onChange={(e)=>{const n=[...config.planes];n[i].hp=Number(e.target.value);onUpdateConfig({planes:n})}} /></div>
-                                                <div>Price: <input className="border w-12" type="number" value={p.price} onChange={(e)=>{const n=[...config.planes];n[i].price=Number(e.target.value);onUpdateConfig({planes:n})}} /></div>
+                                                <div>Speed: <input className="border w-full p-1" type="number" value={p.speed} onChange={(e)=>{const n=[...config.planes];n[i].speed=Number(e.target.value);onUpdateConfig({planes:n})}} /></div>
+                                                <div>HP: <input className="border w-full p-1" type="number" value={p.hp} onChange={(e)=>{const n=[...config.planes];n[i].hp=Number(e.target.value);onUpdateConfig({planes:n})}} /></div>
+                                                <div>Price: <input className="border w-full p-1" type="number" value={p.price} onChange={(e)=>{const n=[...config.planes];n[i].price=Number(e.target.value);onUpdateConfig({planes:n})}} /></div>
                                             </div>
                                         </div>
                                     ))}
@@ -595,25 +707,25 @@
                                                     </select>
                                                 </div>
                                                 <div className="flex gap-2">
-                                                    <div className="flex-1"><label className="text-xs font-bold text-gray-500">Giá tiền</label><input type="number" className="border rounded p-2 w-full" value={editItem.price} onChange={e=>setEditItem({...editItem, price: parseInt(e.target.value)})} /></div>
+                                                    <div className="flex-1"><label className="text-xs font-bold text-gray-500">Giá tiền</label><input type="number" className="border w-full p-1 text-right font-bold text-yellow-600" value={editItem.price} onChange={e=>setEditItem({...editItem, price: parseInt(e.target.value)})} /></div>
                                                     {(editItem.type === 'weapon' || editItem.type === 'missile' || editItem.type === 'bomb') && (
-                                                        <div className="flex-1"><label className="text-xs font-bold text-gray-500">Sát thương/Nổ</label><input type="number" className="border rounded p-2 w-full" value={editItem.value} onChange={e=>setEditItem({...editItem, value: parseInt(e.target.value)})} /></div>
+                                                        <div className="flex-1"><label className="text-xs font-bold text-gray-500">Sát thương/Nổ</label><input type="number" className="border w-full p-1" value={editItem.value} onChange={e=>setEditItem({...editItem, value: parseInt(e.target.value)})} /></div>
                                                     )}
                                                     {editItem.type === 'shield' && (
-                                                        <div className="flex-1"><label className="text-xs font-bold text-gray-500">Thời gian (s)</label><input type="number" className="border rounded p-2 w-full" value={editItem.value} onChange={e=>setEditItem({...editItem, value: parseInt(e.target.value)})} /></div>
+                                                        <div className="flex-1"><label className="text-xs font-bold text-gray-500">Thời gian (s)</label><input type="number" className="border w-full p-1" value={editItem.value} onChange={e=>setEditItem({...editItem, value: parseInt(e.target.value)})} /></div>
                                                     )}
                                                 </div>
                                                 {(editItem.type === 'weapon' || editItem.type === 'missile') && (
                                                     <div>
-                                                        <div className="mb-2"><label className="text-xs font-bold text-gray-500">Tốc độ bắn (Fire Rate - Thấp = Nhanh)</label><input type="number" className="border rounded p-2 w-full" value={editItem.fireRate || 20} onChange={e=>setEditItem({...editItem, fireRate: parseInt(e.target.value)})} /></div>
-                                                        <div><label className="text-xs font-bold text-gray-500">Tốc độ bay đạn (Projectile Speed - Cao = Nhanh)</label><input type="number" className="border rounded p-2 w-full" value={editItem.bulletSpeed || 10} onChange={e=>setEditItem({...editItem, bulletSpeed: parseInt(e.target.value)})} /></div>
+                                                        <div className="mb-2"><label className="text-xs font-bold text-gray-500">Tốc độ bắn (Fire Rate - Thấp = Nhanh)</label><input type="number" className="border w-full p-1" value={editItem.fireRate || 20} onChange={e=>setEditItem({...editItem, fireRate: parseInt(e.target.value)})} /></div>
+                                                        <div><label className="text-xs font-bold text-gray-500">Tốc độ bay đạn (Projectile Speed - Cao = Nhanh)</label><input type="number" className="border w-full p-1" value={editItem.bulletSpeed || 10} onChange={e=>setEditItem({...editItem, bulletSpeed: parseInt(e.target.value)})} /></div>
                                                     </div>
                                                 )}
                                                 {editItem.type === 'missile' && (
-                                                    <div><label className="text-xs font-bold text-gray-500">Thời gian Tracking (s)</label><input type="number" className="border rounded p-2 w-full" value={editItem.trackingTime || 2} onChange={e=>setEditItem({...editItem, trackingTime: parseInt(e.target.value)})} /></div>
+                                                    <div><label className="text-xs font-bold text-gray-500">Thời gian Tracking (s)</label><input type="number" className="border w-full p-1" value={editItem.trackingTime || 2} onChange={e=>setEditItem({...editItem, trackingTime: parseInt(e.target.value)})} /></div>
                                                 )}
                                                 {editItem.type === 'bomb' && (
-                                                    <div><label className="text-xs font-bold text-gray-500">Phạm vi nổ (Radius 2-10)</label><input type="number" min="2" max="10" className="border rounded p-2 w-full" value={editItem.radius || 2} onChange={e=>setEditItem({...editItem, radius: parseInt(e.target.value)})} /></div>
+                                                    <div><label className="text-xs font-bold text-gray-500">Phạm vi nổ (Radius 2-10)</label><input type="number" min="2" max="10" className="border w-full p-1" value={editItem.radius || 2} onChange={e=>setEditItem({...editItem, radius: parseInt(e.target.value)})} /></div>
                                                 )}
                                                 <div><label className="text-xs font-bold text-gray-500">Mô tả</label><input className="border rounded p-2 w-full" value={editItem.description} onChange={e=>setEditItem({...editItem, description: e.target.value})} /></div>
                                             </div>
@@ -648,9 +760,6 @@
             );
         };
 
-        // ==========================================================================================
-        // APP ORCHESTRATOR
-        // ==========================================================================================
         const App = () => {
             const [user, setUser] = useState(null);
             const [view, setView] = useState('login'); 
@@ -688,7 +797,7 @@
             };
 
             const handleUpdateUser = (uid, data) => { MockDB.updateUser(uid, data); setDbVersion(v=>v+1); };
-            const handleAddUser = (form) => { MockDB.register(form.u, form.p, form.e).then(() => { alert("Tạo user thành công!"); setDbVersion(v=>v+1); }).catch(e=>alert(e)); };
+            const handleAddUser = (form) => { MockDB.register(form.u, form.p, form.e, form.avatar).then(() => { alert("Tạo user thành công!"); setDbVersion(v=>v+1); }).catch(e=>alert(e)); };
             const handleDeleteUser = (uid) => { MockDB.deleteUser(uid); setDbVersion(v=>v+1); };
 
             if (!user) return <Module_Auth onLogin={handleLogin} />;
@@ -699,7 +808,7 @@
                     <div className="cloud-bg"><div className="cloud" style={{width:200,height:200,top:'10%'}}></div></div>
                     <div className="flex justify-between items-start mb-8 relative z-10">
                         <div className="flex items-center gap-4 bg-white/80 p-4 rounded-2xl shadow border-2 border-white">
-                            <div className="w-16 h-16 rounded-full bg-gray-300 overflow-hidden">{user.avatar && <img src={user.avatar} className="w-full h-full object-cover"/>}</div>
+                            <div className="w-16 h-16 rounded-full bg-gray-300 overflow-hidden">{user.avatar ? <img src={user.avatar} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center font-bold text-gray-500 text-xl">{user.nickname.charAt(0).toUpperCase()}</div>}</div>
                             <div>
                                 <h1 className="font-bold text-xl">{user.nickname}</h1>
                                 <div className="text-sm font-bold text-yellow-600">Gold: {user.gold}</div>
