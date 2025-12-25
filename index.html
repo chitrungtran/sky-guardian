@@ -377,6 +377,12 @@
                 onUpdateConfig({ events: newEvts });
             };
 
+            const deleteItem = (idx) => {
+                const newItems = [...config.items];
+                newItems.splice(idx, 1);
+                onUpdateConfig({ items: newItems });
+            };
+
             return (
                 <div className="fixed inset-0 bg-gray-900/90 z-50 flex">
                     <div className="w-64 bg-black text-white p-6">
@@ -417,10 +423,43 @@
                                             <div className="grid grid-cols-2 gap-2 text-sm">
                                                 <div>Speed: <input className="border w-12" type="number" value={p.speed} onChange={(e)=>{const n=[...config.planes];n[i].speed=Number(e.target.value);onUpdateConfig({planes:n})}} /></div>
                                                 <div>HP: <input className="border w-12" type="number" value={p.hp} onChange={(e)=>{const n=[...config.planes];n[i].hp=Number(e.target.value);onUpdateConfig({planes:n})}} /></div>
+                                                <div>Price: <input className="border w-12" type="number" value={p.price} onChange={(e)=>{const n=[...config.planes];n[i].price=Number(e.target.value);onUpdateConfig({planes:n})}} /></div>
                                             </div>
                                         </div>
                                     ))}
                                     <button onClick={()=>onUpdateConfig({planes:[...config.planes, {id:'p'+Date.now(), name:'New Plane', speed:5, hp:5, price:1000}]})} className="bg-green-500 text-white rounded p-4 flex items-center justify-center font-bold text-xl">+</button>
+                                </div>
+                            </div>
+                        )}
+                        {tab === 'items' && (
+                            <div>
+                                <h3 className="font-bold text-xl mb-4">Danh sách Vật Phẩm</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    {config.items.map((it, i) => (
+                                        <div key={it.id} className="bg-white p-4 rounded shadow relative group">
+                                            <button onClick={()=>deleteItem(i)} className="absolute top-2 right-2 text-red-500 bg-red-100 p-1 rounded hover:bg-red-200"><Trash2 size={14}/></button>
+                                            <div className="flex gap-2 mb-2">
+                                                <div className="w-10 h-10 border relative cursor-pointer" onClick={()=>document.getElementById(`up_i_${i}`).click()}>
+                                                    {it.image ? <img src={it.image} className="w-full h-full object-contain"/> : <span className="text-xs">Upload</span>}
+                                                    <input type="file" id={`up_i_${i}`} hidden onChange={(e)=>handleUpload(e, 'items', i)} />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <input className="font-bold border-b w-full" value={it.name} onChange={(e)=>{const n=[...config.items];n[i].name=e.target.value;onUpdateConfig({items:n})}} />
+                                                    <select className="text-xs border mt-1" value={it.type} onChange={(e)=>{const n=[...config.items];n[i].type=e.target.value;onUpdateConfig({items:n})}}>
+                                                        <option value="weapon">Vũ khí</option>
+                                                        <option value="shield">Khiên</option>
+                                                        <option value="bomb">Bom</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2 text-sm">
+                                                <div>Giá: <input className="border w-16" type="number" value={it.price} onChange={(e)=>{const n=[...config.items];n[i].price=Number(e.target.value);onUpdateConfig({items:n})}} /></div>
+                                                <div>{it.type==='weapon'?'DMG':(it.type==='shield'?'Time':'Power')}: <input className="border w-12" type="number" value={it.value} onChange={(e)=>{const n=[...config.items];n[i].value=Number(e.target.value);onUpdateConfig({items:n})}} /></div>
+                                            </div>
+                                            <textarea className="w-full text-xs border mt-2 p-1 h-12" value={it.description} onChange={(e)=>{const n=[...config.items];n[i].description=e.target.value;onUpdateConfig({items:n})}}></textarea>
+                                        </div>
+                                    ))}
+                                    <button onClick={()=>onUpdateConfig({items:[...config.items, {id:'i'+Date.now(), name:'New Item', type:'weapon', price:500, value:1, description:'New item'}]})} className="bg-purple-500 text-white rounded p-4 flex items-center justify-center font-bold text-xl">+</button>
                                 </div>
                             </div>
                         )}
