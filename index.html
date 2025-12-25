@@ -22,7 +22,6 @@
         body {
             font-family: 'Nunito', sans-serif;
             background: #e0f2fe; /* Sky blue lighter */
-            /* overflow: hidden;  <-- Đã xóa dòng này để cho phép cuộn trang Dashboard */
         }
 
         /* Ghibli-esque Clouds Animation */
@@ -113,7 +112,7 @@
         const db = firebase.firestore();
 
         // --- GEMINI API INTEGRATION ---
-        const apiKey = ""; // Set automatically by environment
+        const apiKey = ""; 
 
         const generateGeminiContent = async (prompt) => {
             if (!apiKey) {
@@ -173,15 +172,17 @@
             Mail: (props) => <IconBase {...props} d={["M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z", "M22 6l-10 7L2 6"]} />,
             Sparkles: (props) => <IconBase {...props} d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />,
             Camera: (props) => <IconBase {...props} d={["M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z", "M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"]} />, 
+            Plus: (props) => <IconBase {...props} d={["M12 5v14", "M5 12h14"]} />,
+            Upload: (props) => <IconBase {...props} d={["M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4", "M17 8l-5-5-5 5", "M12 3v12"]} />,
         };
 
 
         // --- 3. GAME CONSTANTS & DEFAULT DATA ---
         const DEFAULT_CONFIG = {
             planes: [
-                { id: 'p1', name: 'Mô hình giấy', speed: 4, fireRate: 20, damage: 1, price: 0, color: '#EF4444' }, // Red
-                { id: 'p2', name: 'Chiến cơ Ghibli', speed: 6, fireRate: 15, damage: 2, price: 1000, color: '#3B82F6' }, // Blue
-                { id: 'p3', name: 'Hủy diệt hạm', speed: 8, fireRate: 10, damage: 4, price: 5000, color: '#10B981' }  // Green
+                { id: 'p1', name: 'Mô hình giấy', speed: 4, fireRate: 20, hp: 3, price: 0, color: '#EF4444', image: null }, 
+                { id: 'p2', name: 'Chiến cơ Ghibli', speed: 6, fireRate: 15, hp: 5, price: 1000, color: '#3B82F6', image: null }, 
+                { id: 'p3', name: 'Hủy diệt hạm', speed: 8, fireRate: 10, hp: 8, price: 5000, color: '#10B981', image: null } 
             ],
             weapons: [
                 { id: 'w1', name: 'Súng máy cơ bản', price: 0, power: 1 },
@@ -192,7 +193,7 @@
         // --- 4. REACT COMPONENTS ---
 
         const { useState, useEffect, useRef, useMemo } = React;
-        const { Plane, Shield, Bomb, Zap, Settings, LogOut, User, DollarSign, Trophy, ShoppingCart, Play, Edit, Trash2, ShieldCheck, Lock, Mail, Sparkles, Camera } = Icons; 
+        const { Plane, Shield, Bomb, Zap, Settings, LogOut, User, DollarSign, Trophy, ShoppingCart, Play, Edit, Trash2, ShieldCheck, Lock, Mail, Sparkles, Camera, Plus, Upload } = Icons; 
 
         // --- MOCK DATA MANAGER ---
         const MockDB = {
@@ -456,8 +457,20 @@
         const GameCanvas = ({ user, config, onExit, onGameOver }) => {
             const canvasRef = useRef(null);
             const requestRef = useRef();
+            const planeImagesRef = useRef({});
             
             const currentPlaneStats = config.planes.find(p => p.id === user.currentPlane) || config.planes[0];
+
+            // Load all plane images
+            useEffect(() => {
+                config.planes.forEach(p => {
+                    if (p.image) {
+                        const img = new Image();
+                        img.src = p.image;
+                        planeImagesRef.current[p.id] = img;
+                    }
+                });
+            }, [config]);
 
             useEffect(() => {
                 // Lock scroll when entering game to prevent window scrolling with arrow keys
@@ -477,10 +490,10 @@
                     player: { 
                         x: canvas.width / 2, 
                         y: canvas.height - 100, 
-                        w: 40, h: 40, 
+                        w: 50, h: 50, 
                         speed: currentPlaneStats.speed,
                         color: currentPlaneStats.color,
-                        hp: 3 
+                        hp: currentPlaneStats.hp || 3 
                     },
                     bullets: [],
                     enemies: [],
@@ -551,12 +564,14 @@
                     }
 
                     if (gameState.frames % currentPlaneStats.fireRate === 0) {
+                        // Sát thương cố định hoặc từ vũ khí (tạm thời để 1 nếu chưa cấu hình vũ khí)
+                        const dmg = 1; 
                         gameState.bullets.push({
                             x: player.x,
                             y: player.y - 20,
                             w: 4, h: 10,
                             speed: 10,
-                            damage: currentPlaneStats.damage
+                            damage: dmg
                         });
                     }
 
@@ -593,8 +608,16 @@
 
                         const dist = Math.hypot(player.x - e.x, player.y - e.y);
                         if (dist < (player.w + e.w)/2) {
-                            gameState.gameOver = true;
-                            onGameOver(gameState.score, gameState.goldCollected);
+                            // Player hit
+                            player.hp--;
+                            gameState.enemies.splice(i, 1);
+                            
+                            // Screen shake effect placeholder
+                            
+                            if (player.hp <= 0) {
+                                gameState.gameOver = true;
+                                onGameOver(gameState.score, gameState.goldCollected);
+                            }
                         }
 
                         if (e.y > canvas.height) gameState.enemies.splice(i, 1);
@@ -624,12 +647,31 @@
                     }
 
                     const { player } = gameState;
-                    ctx.fillStyle = player.color;
-                    ctx.beginPath();
-                    ctx.moveTo(player.x, player.y - player.h/2);
-                    ctx.lineTo(player.x - player.w/2, player.y + player.h/2);
-                    ctx.lineTo(player.x + player.w/2, player.y + player.h/2);
-                    ctx.fill();
+                    
+                    // Draw Player Image or Shape
+                    if (planeImagesRef.current[user.currentPlane]) {
+                        ctx.save();
+                        ctx.translate(player.x, player.y);
+                        // Draw image centered
+                        try {
+                            ctx.drawImage(planeImagesRef.current[user.currentPlane], -player.w/2, -player.h/2, player.w, player.h);
+                        } catch(e) {
+                            // Fallback if image fails
+                            ctx.fillStyle = player.color;
+                            ctx.fillRect(-player.w/2, -player.h/2, player.w, player.h);
+                        }
+                        ctx.restore();
+                    } else {
+                        // Default Triangle
+                        ctx.fillStyle = player.color;
+                        ctx.beginPath();
+                        ctx.moveTo(player.x, player.y - player.h/2);
+                        ctx.lineTo(player.x - player.w/2, player.y + player.h/2);
+                        ctx.lineTo(player.x + player.w/2, player.y + player.h/2);
+                        ctx.fill();
+                    }
+
+                    // Engine flame
                     ctx.fillStyle = 'orange';
                     ctx.beginPath();
                     ctx.moveTo(player.x - 5, player.y + player.h/2);
@@ -658,10 +700,21 @@
                         ctx.globalAlpha = 1.0;
                     });
 
+                    // HUD
                     ctx.fillStyle = 'black';
                     ctx.font = 'bold 20px Nunito';
                     ctx.textAlign = 'left';
                     ctx.fillText(`Điểm: ${gameState.score}`, 10, 30);
+                    
+                    // HP Bar
+                    ctx.fillStyle = 'red';
+                    ctx.fillRect(10, 40, 100 * (player.hp / currentPlaneStats.hp), 10);
+                    ctx.strokeStyle = 'black';
+                    ctx.strokeRect(10, 40, 100, 10);
+                    ctx.fillStyle = 'black';
+                    ctx.font = '10px Nunito';
+                    ctx.fillText(`HP: ${player.hp}/${currentPlaneStats.hp}`, 12, 49);
+
                     ctx.fillStyle = '#D97706';
                     ctx.textAlign = 'right';
                     ctx.fillText(`Vàng: +${gameState.goldCollected}`, canvas.width - 10, 30);
@@ -724,13 +777,18 @@
                             return (
                                 <div key={plane.id} className={`border-2 rounded-xl p-4 flex flex-col justify-between ${isEquipped ? 'border-green-500 bg-green-50' : 'border-gray-200'}`}>
                                     <div className="text-center mb-4">
-                                        <div className="w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-2" style={{backgroundColor: plane.color}}>
-                                            <Plane color="white" size={40} />
+                                        <div className="w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-2 overflow-hidden bg-gray-100" style={{backgroundColor: plane.image ? 'transparent' : plane.color}}>
+                                            {plane.image ? (
+                                                <img src={plane.image} alt={plane.name} className="w-full h-full object-contain" />
+                                            ) : (
+                                                <Plane color="white" size={40} />
+                                            )}
                                         </div>
                                         <h3 className="font-bold text-lg">{plane.name}</h3>
-                                        <div className="flex justify-center gap-2 text-xs text-gray-500 mt-2">
-                                            <span className="bg-gray-100 px-2 py-1 rounded">Speed: {plane.speed}</span>
-                                            <span className="bg-gray-100 px-2 py-1 rounded">Dmg: {plane.damage}</span>
+                                        <div className="flex justify-center gap-2 text-xs text-gray-500 mt-2 flex-wrap">
+                                            <span className="bg-gray-100 px-2 py-1 rounded">Tốc độ: {plane.speed}</span>
+                                            <span className="bg-gray-100 px-2 py-1 rounded">HP: {plane.hp}</span>
+                                            <span className="bg-gray-100 px-2 py-1 rounded">Bắn: {plane.fireRate}</span>
                                         </div>
                                     </div>
                                     
@@ -780,6 +838,35 @@
             const [editUser, setEditUser] = useState(null);
 
             const usersList = Object.values(allUsers);
+
+            const handleImageUpload = (e, index) => {
+                const file = e.target.files[0];
+                if (file && file.type === "image/png") {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        const newPlanes = [...config.planes];
+                        newPlanes[index].image = reader.result;
+                        onUpdateConfig({ planes: newPlanes });
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    alert("Chỉ chấp nhận file ảnh PNG!");
+                }
+            };
+
+            const addNewPlane = () => {
+                const newPlane = {
+                    id: 'p' + Date.now(),
+                    name: 'Máy bay mới',
+                    speed: 5,
+                    fireRate: 20,
+                    hp: 3,
+                    price: 1000,
+                    color: '#666666',
+                    image: null
+                };
+                onUpdateConfig({ planes: [...config.planes, newPlane] });
+            };
 
             return (
                 <div className="fixed inset-0 bg-gray-900/50 backdrop-blur flex items-center justify-center z-50">
@@ -895,14 +982,40 @@
 
                             {activeTab === 'planes' && (
                                 <div>
-                                    <h2 className="text-2xl font-bold mb-6 text-gray-800">Cân bằng Game: Thông số Máy Bay</h2>
+                                    <div className="flex justify-between items-center mb-6 border-b pb-2">
+                                        <h2 className="text-2xl font-bold text-gray-800">Cân bằng Game: Thông số Máy Bay</h2>
+                                        <button 
+                                            onClick={addNewPlane}
+                                            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-bold shadow transition"
+                                        >
+                                            <Plus size={18} /> Thêm Máy Bay Mới
+                                        </button>
+                                    </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         {config.planes.map((plane, idx) => (
-                                            <div key={plane.id} className="bg-white p-5 rounded-xl shadow border border-gray-200 relative">
+                                            <div key={plane.id} className="bg-white p-5 rounded-xl shadow border border-gray-200 relative group">
                                                 <div className="flex justify-between items-start mb-4">
                                                     <div className="font-bold text-lg flex items-center gap-2">
-                                                        <span className="w-4 h-4 rounded-full" style={{background: plane.color}}></span>
-                                                        {plane.name}
+                                                        <div className="w-10 h-10 rounded overflow-hidden border border-gray-300 flex items-center justify-center bg-gray-50 relative">
+                                                            {plane.image ? (
+                                                                <img src={plane.image} alt="preview" className="w-full h-full object-contain" />
+                                                            ) : (
+                                                                <span className="w-4 h-4 rounded-full" style={{background: plane.color}}></span>
+                                                            )}
+                                                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition cursor-pointer" onClick={() => document.getElementById(`upload-${plane.id}`).click()}>
+                                                                <Upload size={16} className="text-white"/>
+                                                            </div>
+                                                            <input type="file" id={`upload-${plane.id}`} className="hidden" accept="image/png" onChange={(e) => handleImageUpload(e, idx)} />
+                                                        </div>
+                                                        <input 
+                                                            className="border-b border-dashed border-gray-400 focus:border-blue-500 outline-none bg-transparent"
+                                                            value={plane.name}
+                                                            onChange={(e) => {
+                                                                const newPlanes = [...config.planes];
+                                                                newPlanes[idx].name = e.target.value;
+                                                                onUpdateConfig({ planes: newPlanes });
+                                                            }}
+                                                        />
                                                     </div>
                                                     <span className="text-xs font-mono bg-gray-100 p-1 rounded">ID: {plane.id}</span>
                                                 </div>
@@ -919,18 +1032,18 @@
                                                         />
                                                     </div>
                                                     <div className="flex justify-between items-center">
-                                                        <label className="text-sm text-gray-500">Sát thương</label>
+                                                        <label className="text-sm text-gray-500">Độ bền (HP)</label>
                                                         <input type="number" className="border rounded w-20 p-1 text-right" 
-                                                            value={plane.damage} 
+                                                            value={plane.hp} 
                                                             onChange={(e) => {
                                                                 const newPlanes = [...config.planes];
-                                                                newPlanes[idx].damage = Number(e.target.value);
+                                                                newPlanes[idx].hp = Number(e.target.value);
                                                                 onUpdateConfig({ planes: newPlanes });
                                                             }}
                                                         />
                                                     </div>
                                                     <div className="flex justify-between items-center">
-                                                        <label className="text-sm text-gray-500">Tốc độ bắn (thấp = nhanh)</label>
+                                                        <label className="text-sm text-gray-500">Tốc độ bắn (nhỏ = nhanh)</label>
                                                         <input type="number" className="border rounded w-20 p-1 text-right" 
                                                             value={plane.fireRate} 
                                                             onChange={(e) => {
@@ -940,12 +1053,23 @@
                                                             }}
                                                         />
                                                     </div>
+                                                    <div className="flex justify-between items-center">
+                                                        <label className="text-sm text-gray-500">Giá bán</label>
+                                                        <input type="number" className="border rounded w-24 p-1 text-right" 
+                                                            value={plane.price} 
+                                                            onChange={(e) => {
+                                                                const newPlanes = [...config.planes];
+                                                                newPlanes[idx].price = Number(e.target.value);
+                                                                onUpdateConfig({ planes: newPlanes });
+                                                            }}
+                                                        />
+                                                    </div>
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
                                     <div className="mt-4 p-4 bg-yellow-50 text-yellow-800 rounded border border-yellow-200 text-sm">
-                                        * Lưu ý: Thay đổi sẽ áp dụng ngay lập tức cho tất cả người chơi đang online.
+                                        * Lưu ý: Click vào ô vuông nhỏ để upload ảnh PNG cho máy bay. Sát thương sẽ phụ thuộc vào trang bị súng.
                                     </div>
                                 </div>
                             )}
