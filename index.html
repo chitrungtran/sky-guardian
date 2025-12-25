@@ -103,7 +103,7 @@
         // ==========================================================================================
         const MockDB = {
             users: {
-                'admin_uid': { uid: 'admin_uid', username: 'admin', password: 'qazwsx@12A', email: 'admin@sky.com', role: 'admin', nickname: 'Admin Bất Tử', avatar: null, gold: 999999, level: 99, planes: ['p1', 'p2', 'p3'], currentPlane: 'p3', currentWeapon: 'w1', inventory: { shields: 99, bombs: 99 }, eventsParticipated: [] }
+                'admin_uid': { uid: 'admin_uid', username: 'admin', password: 'qazwsx@12A', email: 'admin@sky.com', role: 'admin', nickname: 'Admin Bất Tử', avatar: null, gold: 999999, level: 99, title: 'Trùm Cuối', planes: ['p1', 'p2', 'p3'], currentPlane: 'p3', currentWeapon: 'w1', inventory: { shields: 99, bombs: 99 }, eventsParticipated: [] }
             },
             currentUser: null,
             login: async (u, p) => { /* ... Logic Login ... */ 
@@ -124,7 +124,7 @@
                 return new Promise((resolve, reject) => {
                     setTimeout(() => {
                         if (Object.values(MockDB.users).some(usr => usr.username === u)) return reject("Trùng username!");
-                        const newUser = { uid: 'u_'+Date.now(), username: u, password: p, email: e, role: 'user', nickname: u, avatar: null, gold: 500, level: 1, exp: 0, planes: ['p1'], currentPlane: 'p1', currentWeapon: 'w1', inventory: { shields: 1, bombs: 4 }, eventsParticipated: [] };
+                        const newUser = { uid: 'u_'+Date.now(), username: u, password: p, email: e, role: 'user', nickname: u, avatar: null, gold: 500, level: 1, title: 'Tân Binh', exp: 0, planes: ['p1'], currentPlane: 'p1', currentWeapon: 'w1', inventory: { shields: 1, bombs: 4 }, eventsParticipated: [] };
                         MockDB.users[newUser.uid] = newUser;
                         MockDB.currentUser = newUser;
                         resolve(newUser);
@@ -132,6 +132,7 @@
                 });
             },
             updateUser: (uid, data) => { if (MockDB.users[uid]) MockDB.users[uid] = { ...MockDB.users[uid], ...data }; },
+            deleteUser: (uid) => { delete MockDB.users[uid]; },
             changePassword: async (uid, old, newP) => { /* ... */ return Promise.resolve(true); },
             resetPassword: async (e) => { return Promise.resolve("Đã gửi mail!"); }
         };
@@ -356,8 +357,11 @@
         // ==========================================================================================
         // MODULE 5: ADMIN MANAGEMENT (QUẢN LÝ TỔNG)
         // ==========================================================================================
-        const Module_Admin = ({ user, config, allUsers, onUpdateConfig, onUpdateUser, onExit }) => {
+        const Module_Admin = ({ user, config, allUsers, onUpdateConfig, onUpdateUser, onAddUser, onDeleteUser, onExit }) => {
             const [tab, setTab] = useState('users');
+            const [editUser, setEditUser] = useState(null);
+            const [showAddUser, setShowAddUser] = useState(false);
+            const [newUserForm, setNewUserForm] = useState({ u: '', p: '', e: '' });
             
             const handleUpload = (e, listName, idx) => {
                 const file = e.target.files[0];
@@ -398,13 +402,71 @@
                     <div className="flex-1 bg-gray-100 p-8 overflow-y-auto text-black">
                         {tab === 'users' && (
                             <div>
-                                <h3 className="font-bold text-xl mb-4">Danh sách User</h3>
+                                <div className="flex justify-between items-center mb-6 border-b pb-2">
+                                    <h3 className="font-bold text-xl">Danh sách User</h3>
+                                    <button onClick={()=>setShowAddUser(true)} className="bg-green-600 text-white px-4 py-2 rounded font-bold"><Plus size={16} className="inline"/> Thêm User</button>
+                                </div>
                                 {Object.values(allUsers).map(u => (
-                                    <div key={u.uid} className="bg-white p-4 mb-2 rounded shadow flex justify-between">
-                                        <div><b>{u.nickname}</b> (Gold: {u.gold})</div>
-                                        <input type="number" className="border w-20" defaultValue={u.gold} onBlur={(e)=>onUpdateUser(u.uid, {gold: parseInt(e.target.value)})} />
+                                    <div key={u.uid} className="bg-white p-4 mb-2 rounded shadow flex justify-between items-center">
+                                        <div>
+                                            <div className="font-bold">{u.nickname} <span className="text-xs text-gray-500">({u.username})</span></div>
+                                            <div className="text-sm text-gray-500">{u.email} | Lvl {u.level} | {u.title || 'Không danh hiệu'}</div>
+                                            <div className="text-sm font-bold text-yellow-600">Gold: {u.gold}</div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => setEditUser({...u, newPass: ''})} className="bg-blue-100 text-blue-600 p-2 rounded hover:bg-blue-200"><Edit size={16}/></button>
+                                            <button onClick={() => { if(confirm('Xóa user này?')) onDeleteUser(u.uid); }} className="bg-red-100 text-red-600 p-2 rounded hover:bg-red-200"><Trash2 size={16}/></button>
+                                        </div>
                                     </div>
                                 ))}
+                                
+                                {showAddUser && (
+                                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                                        <div className="bg-white p-6 rounded-xl shadow-xl w-96">
+                                            <h3 className="font-bold text-lg mb-4">Thêm User Mới</h3>
+                                            <input className="border w-full p-2 mb-2 rounded" placeholder="Username" value={newUserForm.u} onChange={e=>setNewUserForm({...newUserForm, u: e.target.value})} />
+                                            <input className="border w-full p-2 mb-2 rounded" placeholder="Password" type="password" value={newUserForm.p} onChange={e=>setNewUserForm({...newUserForm, p: e.target.value})} />
+                                            <input className="border w-full p-2 mb-4 rounded" placeholder="Email" value={newUserForm.e} onChange={e=>setNewUserForm({...newUserForm, e: e.target.value})} />
+                                            <div className="flex justify-end gap-2">
+                                                <button onClick={()=>setShowAddUser(false)} className="text-gray-500 px-4 py-2">Hủy</button>
+                                                <button onClick={()=>{ onAddUser(newUserForm); setShowAddUser(false); setNewUserForm({u:'',p:'',e:''}); }} className="bg-green-600 text-white px-4 py-2 rounded">Tạo</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {editUser && (
+                                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                                        <div className="bg-white p-6 rounded-xl shadow-xl w-96 animate-in fade-in zoom-in duration-200 overflow-y-auto max-h-[80vh]">
+                                            <h3 className="font-bold text-lg mb-4">Sửa: {editUser.username}</h3>
+                                            <div className="space-y-3">
+                                                <div><label className="text-xs font-bold text-gray-500">Nickname</label><input className="border rounded p-2 w-full" value={editUser.nickname} onChange={e=>setEditUser({...editUser, nickname: e.target.value})} /></div>
+                                                <div><label className="text-xs font-bold text-gray-500">Email</label><input className="border rounded p-2 w-full" value={editUser.email} onChange={e=>setEditUser({...editUser, email: e.target.value})} /></div>
+                                                <div><label className="text-xs font-bold text-gray-500">Mật khẩu mới (Để trống nếu không đổi)</label><input className="border rounded p-2 w-full" placeholder="Nhập pass mới..." value={editUser.newPass || ''} onChange={e=>setEditUser({...editUser, newPass: e.target.value})} /></div>
+                                                <div className="flex gap-2">
+                                                    <div className="flex-1"><label className="text-xs font-bold text-gray-500">Gold</label><input type="number" className="border rounded p-2 w-full" value={editUser.gold} onChange={e=>setEditUser({...editUser, gold: parseInt(e.target.value)})} /></div>
+                                                    <div className="flex-1"><label className="text-xs font-bold text-gray-500">Level</label><input type="number" className="border rounded p-2 w-full" value={editUser.level} onChange={e=>setEditUser({...editUser, level: parseInt(e.target.value)})} /></div>
+                                                </div>
+                                                <div><label className="text-xs font-bold text-gray-500">Danh hiệu</label><input className="border rounded p-2 w-full" value={editUser.title || ''} onChange={e=>setEditUser({...editUser, title: e.target.value})} /></div>
+                                            </div>
+                                            <div className="flex justify-end gap-2 mt-6">
+                                                <button onClick={() => setEditUser(null)} className="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded">Hủy</button>
+                                                <button 
+                                                    onClick={() => {
+                                                        const updates = { 
+                                                            nickname: editUser.nickname, email: editUser.email, 
+                                                            gold: editUser.gold, level: editUser.level, title: editUser.title 
+                                                        };
+                                                        if (editUser.newPass) updates.password = editUser.newPass;
+                                                        onUpdateUser(editUser.uid, updates);
+                                                        setEditUser(null);
+                                                    }}
+                                                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-bold"
+                                                >Lưu</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
                         {tab === 'planes' && (
@@ -494,6 +556,7 @@
             const [view, setView] = useState('login'); 
             const [config, setConfig] = useState(DEFAULT_CONFIG);
             const [showSettings, setShowSettings] = useState(false);
+            const [dbVersion, setDbVersion] = useState(0); // Force re-render for DB changes
 
             const handleLogin = (u) => { setUser(u); setView('dashboard'); };
             const handleLogout = () => { setUser(null); setView('login'); setShowSettings(false); };
@@ -523,6 +586,10 @@
                 setUser(newUser); MockDB.updateUser(user.uid, newUser);
                 alert(`Đã nhận thưởng sự kiện: +${evt.bonusGold} Gold!`);
             };
+
+            const handleUpdateUser = (uid, data) => { MockDB.updateUser(uid, data); setDbVersion(v=>v+1); };
+            const handleAddUser = (form) => { MockDB.register(form.u, form.p, form.e).then(() => { alert("Tạo user thành công!"); setDbVersion(v=>v+1); }).catch(e=>alert(e)); };
+            const handleDeleteUser = (uid) => { MockDB.deleteUser(uid); setDbVersion(v=>v+1); };
 
             if (!user) return <Module_Auth onLogin={handleLogin} />;
             if (view === 'game') return <Module_Game user={user} config={config} onExit={()=>setView('dashboard')} onGameOver={(s,g)=>{ alert(`Thua rồi! Điểm: ${s}, Vàng: ${g}`); const u={...user}; u.gold+=g; setUser(u); MockDB.updateUser(u.uid, u); setView('dashboard'); }} />;
@@ -579,7 +646,7 @@
 
                     {/* OVERLAYS */}
                     {view === 'shop' && <div className="fixed inset-0 z-40 bg-black/50 flex items-center justify-center p-4"><Module_Shop user={user} config={config} onPurchase={handlePurchase} onBack={()=>setView('dashboard')} /></div>}
-                    {view === 'admin' && <Module_Admin user={user} config={config} allUsers={MockDB.users} onUpdateConfig={(nc)=>setConfig({...config, ...nc})} onUpdateUser={(id, d)=>MockDB.updateUser(id, d)} onExit={()=>setView('dashboard')} />}
+                    {view === 'admin' && <Module_Admin user={user} config={config} allUsers={MockDB.users} onUpdateConfig={(nc)=>setConfig({...config, ...nc})} onUpdateUser={handleUpdateUser} onAddUser={handleAddUser} onDeleteUser={handleDeleteUser} onExit={()=>setView('dashboard')} />}
                     {showSettings && <Module_UserSettings user={user} onUpdate={(d)=>{const u={...user,...d}; setUser(u); MockDB.updateUser(u.uid, u);}} onLogout={handleLogout} onClose={()=>setShowSettings(false)} />}
                 </div>
             );
