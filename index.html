@@ -22,7 +22,7 @@
         body {
             font-family: 'Nunito', sans-serif;
             background: #e0f2fe; /* Sky blue lighter */
-            overflow: hidden; /* Prevent scrolling during game */
+            /* overflow: hidden;  <-- Đã xóa dòng này để cho phép cuộn trang Dashboard */
         }
 
         /* Ghibli-esque Clouds Animation */
@@ -404,6 +404,9 @@
             const currentPlaneStats = config.planes.find(p => p.id === user.currentPlane) || config.planes[0];
 
             useEffect(() => {
+                // Lock scroll when entering game to prevent window scrolling with arrow keys
+                document.body.style.overflow = 'hidden';
+
                 const canvas = canvasRef.current;
                 const ctx = canvas.getContext('2d');
                 
@@ -617,6 +620,9 @@
                 requestRef.current = requestAnimationFrame(loop);
 
                 return () => {
+                    // Unlock scroll when exiting game
+                    document.body.style.overflow = 'auto';
+
                     cancelAnimationFrame(requestRef.current);
                     window.removeEventListener('keydown', handleKeyDown);
                     window.removeEventListener('keyup', handleKeyUp);
