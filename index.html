@@ -80,6 +80,11 @@
             animation: spin 1s linear infinite;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* Avatar Upload Overlay */
+        .avatar-container:hover .avatar-overlay {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
@@ -166,7 +171,8 @@
             ShieldCheck: (props) => <IconBase {...props} d={["M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z", "M9 12l2 2 4-4"]} />,
             Lock: (props) => <IconBase {...props} d={["M4 11a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9z", "M7 11V7a5 5 0 0 1 10 0v4"]} />,
             Mail: (props) => <IconBase {...props} d={["M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z", "M22 6l-10 7L2 6"]} />,
-            Sparkles: (props) => <IconBase {...props} d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />, 
+            Sparkles: (props) => <IconBase {...props} d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />,
+            Camera: (props) => <IconBase {...props} d={["M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z", "M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"]} />, 
         };
 
 
@@ -186,7 +192,7 @@
         // --- 4. REACT COMPONENTS ---
 
         const { useState, useEffect, useRef, useMemo } = React;
-        const { Plane, Shield, Bomb, Zap, Settings, LogOut, User, DollarSign, Trophy, ShoppingCart, Play, Edit, Trash2, ShieldCheck, Lock, Mail, Sparkles } = Icons; 
+        const { Plane, Shield, Bomb, Zap, Settings, LogOut, User, DollarSign, Trophy, ShoppingCart, Play, Edit, Trash2, ShieldCheck, Lock, Mail, Sparkles, Camera } = Icons; 
 
         // --- MOCK DATA MANAGER ---
         const MockDB = {
@@ -199,6 +205,7 @@
                     email: 'admin@skyguardian.com',
                     role: 'admin',
                     nickname: 'Admin Bất Tử',
+                    avatar: null,
                     gold: 999999,
                     level: 99,
                     planes: ['p1', 'p2', 'p3'],
@@ -212,16 +219,6 @@
             login: async (username, password) => {
                 return new Promise((resolve, reject) => {
                     setTimeout(() => {
-                        if (username === 'admin') {
-                            if (password === 'qazwsx@12A') {
-                                MockDB.currentUser = MockDB.users['admin_uid'];
-                                resolve(MockDB.currentUser);
-                            } else {
-                                reject("Sai mật khẩu Admin! Đừng hòng hack.");
-                            }
-                            return;
-                        }
-
                         const usersArr = Object.values(MockDB.users);
                         const foundUser = usersArr.find(u => u.username === username);
 
@@ -256,6 +253,7 @@
                             email,
                             role: 'user',
                             nickname: username,
+                            avatar: null,
                             gold: 500,
                             level: 1,
                             exp: 0,
@@ -271,6 +269,34 @@
                 });
             },
             
+            changePassword: async (uid, oldPass, newPass) => {
+                return new Promise((resolve, reject) => {
+                    setTimeout(() => {
+                        const user = MockDB.users[uid];
+                        if (user && user.password === oldPass) {
+                            user.password = newPass;
+                            resolve(true);
+                        } else {
+                            reject("Mật khẩu cũ không đúng!");
+                        }
+                    }, 500);
+                });
+            },
+
+            resetPassword: async (email) => {
+                return new Promise((resolve, reject) => {
+                    setTimeout(() => {
+                        const usersArr = Object.values(MockDB.users);
+                        const user = usersArr.find(u => u.email === email);
+                        if (user) {
+                            resolve("Email khôi phục đã gửi tới " + email);
+                        } else {
+                            reject("Email này chưa đăng ký tài khoản nào cả!");
+                        }
+                    }, 800);
+                });
+            },
+
             updateUser: (uid, data) => {
                 if (MockDB.users[uid]) {
                     MockDB.users[uid] = { ...MockDB.users[uid], ...data };
@@ -281,27 +307,34 @@
         // --- COMPONENT: LOGIN & REGISTER ---
         const LoginScreen = ({ onLogin }) => {
             const [isRegistering, setIsRegistering] = useState(false);
+            const [isForgotPassword, setIsForgotPassword] = useState(false);
             const [username, setUsername] = useState('');
             const [pass, setPass] = useState('');
             const [email, setEmail] = useState('');
             const [loading, setLoading] = useState(false);
             const [error, setError] = useState('');
+            const [message, setMessage] = useState('');
 
             const handleSubmit = async (e) => {
                 e.preventDefault();
                 setLoading(true);
                 setError('');
+                setMessage('');
 
                 try {
                     let user;
-                    if (isRegistering) {
+                    if (isForgotPassword) {
+                        const msg = await MockDB.resetPassword(email);
+                        setMessage(msg);
+                    } else if (isRegistering) {
                         if (!email) throw new Error("Nhập cái email vào để còn lấy lại pass!");
                         user = await MockDB.register(username, pass, email);
                         alert("Đăng ký thành công! Tặng bạn 500 vàng khởi nghiệp.");
+                        onLogin(user);
                     } else {
                         user = await MockDB.login(username, pass);
+                        onLogin(user);
                     }
-                    onLogin(user);
                 } catch (err) {
                     setError(err);
                 } finally {
@@ -325,26 +358,33 @@
                                 {error}
                             </div>
                         )}
+                        {message && (
+                            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-2 rounded relative mb-4 text-sm font-bold animate-pulse">
+                                {message}
+                            </div>
+                        )}
 
                         <form onSubmit={handleSubmit} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 flex items-center gap-1">
-                                    <User size={14}/> Tên đăng nhập (Username)
-                                </label>
-                                <input 
-                                    type="text" 
-                                    value={username}
-                                    onChange={(e) => setUsername(e.target.value)}
-                                    className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                                    placeholder={isRegistering ? "Đặt tên cho ngầu vào..." : "Nhập username..."}
-                                    required
-                                />
-                            </div>
+                            {!isForgotPassword && (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 flex items-center gap-1">
+                                        <User size={14}/> Tên đăng nhập (Username)
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        value={username}
+                                        onChange={(e) => setUsername(e.target.value)}
+                                        className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                        placeholder={isRegistering ? "Đặt tên cho ngầu vào..." : "Nhập username..."}
+                                        required
+                                    />
+                                </div>
+                            )}
 
-                            {isRegistering && (
+                            {(isRegistering || isForgotPassword) && (
                                 <div className="animate-in fade-in slide-in-from-top-2 duration-300">
                                     <label className="block text-sm font-medium text-gray-700 flex items-center gap-1">
-                                        <Mail size={14}/> Email (Để khôi phục pass)
+                                        <Mail size={14}/> Email {isForgotPassword ? "(Để nhận link reset)" : "(Để khôi phục pass)"}
                                     </label>
                                     <input 
                                         type="email" 
@@ -357,38 +397,54 @@
                                 </div>
                             )}
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 flex items-center gap-1">
-                                    <Lock size={14}/> Mật khẩu
-                                </label>
-                                <input 
-                                    type="password" 
-                                    value={pass}
-                                    onChange={(e) => setPass(e.target.value)}
-                                    className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                                    placeholder="••••••"
-                                    required
-                                />
-                            </div>
+                            {!isForgotPassword && (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 flex items-center gap-1">
+                                        <Lock size={14}/> Mật khẩu
+                                    </label>
+                                    <input 
+                                        type="password" 
+                                        value={pass}
+                                        onChange={(e) => setPass(e.target.value)}
+                                        className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                        placeholder="••••••"
+                                        required
+                                    />
+                                </div>
+                            )}
                             
                             <button 
                                 type="submit" 
                                 disabled={loading}
-                                className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-full shadow-sm text-sm font-medium text-white transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${isRegistering ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+                                className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-full shadow-sm text-sm font-medium text-white transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${isForgotPassword ? 'bg-orange-500 hover:bg-orange-600' : (isRegistering ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700')}`}
                             >
-                                {loading ? 'Đang xử lý...' : (isRegistering ? 'Đăng Ký Ngay' : 'Đăng Nhập')}
+                                {loading ? 'Đang xử lý...' : (isForgotPassword ? 'Gửi Link Khôi Phục' : (isRegistering ? 'Đăng Ký Ngay' : 'Đăng Nhập'))}
                             </button>
                         </form>
 
-                        <div className="mt-6 text-center">
+                        <div className="mt-4 flex flex-col gap-2 text-center">
+                            {!isForgotPassword && (
+                                <button 
+                                    onClick={() => {
+                                        setIsRegistering(!isRegistering);
+                                        setError('');
+                                    }}
+                                    className="text-sm text-blue-600 hover:text-blue-800 font-bold underline decoration-dotted"
+                                >
+                                    {isRegistering ? 'Đã có tài khoản? Đăng nhập' : 'Chưa có tài khoản? Đăng ký ngay'}
+                                </button>
+                            )}
+                            
                             <button 
                                 onClick={() => {
-                                    setIsRegistering(!isRegistering);
+                                    setIsForgotPassword(!isForgotPassword);
+                                    setIsRegistering(false);
                                     setError('');
+                                    setMessage('');
                                 }}
-                                className="text-sm text-blue-600 hover:text-blue-800 font-bold underline decoration-dotted"
+                                className="text-xs text-gray-500 hover:text-gray-700"
                             >
-                                {isRegistering ? 'Đã có tài khoản? Đăng nhập' : 'Chưa có tài khoản? Đăng ký ngay'}
+                                {isForgotPassword ? 'Quay lại Đăng Nhập' : 'Quên mật khẩu?'}
                             </button>
                         </div>
                     </div>
@@ -901,52 +957,193 @@
 
         // --- COMPONENT: USER SETTINGS ---
         const UserSettings = ({ user, onUpdate, onClose, onLogout }) => {
+            const [activeSection, setActiveSection] = useState('profile');
             const [newName, setNewName] = useState(user.nickname);
+            const [newEmail, setNewEmail] = useState(user.email);
+            
+            // Password State
+            const [oldPass, setOldPass] = useState('');
             const [newPass, setNewPass] = useState('');
+            const [confirmPass, setConfirmPass] = useState('');
+            const [passError, setPassError] = useState('');
+            const [passSuccess, setPassSuccess] = useState('');
+
+            const fileInputRef = useRef(null);
+
+            const handleAvatarChange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        onUpdate({ avatar: reader.result });
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+
+            const handleChangePassword = async () => {
+                setPassError('');
+                setPassSuccess('');
+                if (newPass !== confirmPass) {
+                    setPassError('Mật khẩu mới không khớp!');
+                    return;
+                }
+                if (newPass.length < 6) {
+                    setPassError('Mật khẩu mới phải từ 6 ký tự!');
+                    return;
+                }
+
+                try {
+                    await MockDB.changePassword(user.uid, oldPass, newPass);
+                    setPassSuccess('Đổi mật khẩu thành công!');
+                    setOldPass('');
+                    setNewPass('');
+                    setConfirmPass('');
+                } catch (err) {
+                    setPassError(err);
+                }
+            };
 
             return (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-                    <div className="bg-white p-6 rounded-2xl shadow-xl w-80">
-                        <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><Settings className="text-gray-600"/> Cài đặt</h2>
-                        
-                        <div className="space-y-4 mb-6">
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tên hiển thị</label>
-                                <input 
-                                    value={newName} 
-                                    onChange={(e) => setNewName(e.target.value)}
-                                    className="w-full border p-2 rounded" 
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Đổi mật khẩu</label>
-                                <input 
-                                    type="password" 
-                                    placeholder="Mật khẩu mới..."
-                                    value={newPass}
-                                    onChange={(e) => setNewPass(e.target.value)}
-                                    className="w-full border p-2 rounded" 
-                                />
-                            </div>
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-2xl w-[500px] overflow-hidden flex flex-col max-h-[90vh]">
+                        {/* Header */}
+                        <div className="bg-gray-100 p-4 border-b flex justify-between items-center">
+                            <h2 className="text-xl font-bold flex items-center gap-2"><Settings className="text-gray-600"/> Cài đặt Tài Khoản</h2>
+                            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">&times;</button>
                         </div>
 
-                        <div className="flex flex-col gap-2">
+                        {/* Tabs */}
+                        <div className="flex border-b">
                             <button 
-                                onClick={() => {
-                                    onUpdate({ nickname: newName });
-                                    onClose();
-                                }}
-                                className="w-full py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700"
+                                onClick={() => setActiveSection('profile')}
+                                className={`flex-1 py-3 font-bold text-sm ${activeSection === 'profile' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50' : 'text-gray-500 hover:bg-gray-50'}`}
                             >
-                                Lưu thay đổi
+                                Hồ sơ & Avatar
                             </button>
+                            <button 
+                                onClick={() => setActiveSection('security')}
+                                className={`flex-1 py-3 font-bold text-sm ${activeSection === 'security' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50' : 'text-gray-500 hover:bg-gray-50'}`}
+                            >
+                                Bảo mật & Mật khẩu
+                            </button>
+                        </div>
+                        
+                        <div className="p-6 overflow-y-auto">
+                            {/* PROFILE SECTION */}
+                            {activeSection === 'profile' && (
+                                <div className="space-y-6">
+                                    {/* Avatar Upload */}
+                                    <div className="flex flex-col items-center">
+                                        <div 
+                                            className="relative w-24 h-24 rounded-full bg-gray-200 overflow-hidden cursor-pointer avatar-container shadow-inner border-4 border-white"
+                                            onClick={() => fileInputRef.current.click()}
+                                        >
+                                            {user.avatar ? (
+                                                <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-tr from-blue-400 to-purple-500 text-white text-3xl font-bold">
+                                                    {user.nickname.charAt(0).toUpperCase()}
+                                                </div>
+                                            )}
+                                            <div className="avatar-overlay absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 transition-opacity duration-200">
+                                                <Camera className="text-white" size={24} />
+                                            </div>
+                                        </div>
+                                        <input 
+                                            type="file" 
+                                            ref={fileInputRef} 
+                                            onChange={handleAvatarChange} 
+                                            className="hidden" 
+                                            accept="image/*"
+                                        />
+                                        <span className="text-xs text-blue-500 mt-2 cursor-pointer hover:underline" onClick={() => fileInputRef.current.click()}>Đổi Avatar</span>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tên hiển thị</label>
+                                            <input 
+                                                value={newName} 
+                                                onChange={(e) => setNewName(e.target.value)}
+                                                className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-200 outline-none transition" 
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Email</label>
+                                            <input 
+                                                value={newEmail} 
+                                                onChange={(e) => setNewEmail(e.target.value)}
+                                                className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-200 outline-none transition" 
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <button 
+                                        onClick={() => {
+                                            onUpdate({ nickname: newName, email: newEmail });
+                                            alert("Đã cập nhật hồ sơ!");
+                                        }}
+                                        className="w-full py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 shadow-md transition transform hover:scale-[1.02]"
+                                    >
+                                        Lưu thay đổi hồ sơ
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* SECURITY SECTION */}
+                            {activeSection === 'security' && (
+                                <div className="space-y-4">
+                                    {passError && <div className="bg-red-50 text-red-600 p-2 rounded text-sm border border-red-200">{passError}</div>}
+                                    {passSuccess && <div className="bg-green-50 text-green-600 p-2 rounded text-sm border border-green-200">{passSuccess}</div>}
+
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Mật khẩu hiện tại</label>
+                                        <input 
+                                            type="password" 
+                                            value={oldPass}
+                                            onChange={(e) => setOldPass(e.target.value)}
+                                            className="w-full border p-2 rounded focus:ring-2 focus:ring-red-200 outline-none transition"
+                                            placeholder="Nhập mật khẩu cũ..." 
+                                        />
+                                    </div>
+                                    <div className="border-t pt-4">
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Mật khẩu mới</label>
+                                        <input 
+                                            type="password" 
+                                            value={newPass}
+                                            onChange={(e) => setNewPass(e.target.value)}
+                                            className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-200 outline-none transition mb-2"
+                                            placeholder="Mật khẩu mới..." 
+                                        />
+                                        <input 
+                                            type="password" 
+                                            value={confirmPass}
+                                            onChange={(e) => setConfirmPass(e.target.value)}
+                                            className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-200 outline-none transition"
+                                            placeholder="Nhập lại mật khẩu mới..." 
+                                        />
+                                    </div>
+
+                                    <button 
+                                        onClick={handleChangePassword}
+                                        className="w-full py-2 bg-gray-800 text-white rounded font-bold hover:bg-black shadow-md transition transform hover:scale-[1.02]"
+                                    >
+                                        Đổi Mật Khẩu
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-4 bg-gray-50 border-t flex justify-between items-center">
                             <button 
                                 onClick={onLogout}
-                                className="w-full py-2 border border-red-200 text-red-600 rounded font-bold hover:bg-red-50"
+                                className="text-red-600 hover:bg-red-50 px-3 py-1 rounded font-bold text-sm border border-transparent hover:border-red-200 transition"
                             >
-                                Đăng xuất
+                                <LogOut size={14} className="inline mr-1"/> Đăng xuất
                             </button>
-                            <button onClick={onClose} className="text-gray-400 text-sm mt-2 hover:text-gray-600">Đóng</button>
+                            <button onClick={onClose} className="text-gray-500 hover:text-gray-800 text-sm">Đóng</button>
                         </div>
                     </div>
                 </div>
@@ -1089,8 +1286,14 @@
                     {/* Dashboard Header */}
                     <div className="relative z-10 flex justify-between items-start mb-8">
                         <div className="flex items-center gap-4 bg-white/80 backdrop-blur p-4 rounded-2xl shadow-lg border-2 border-white">
-                            <div className="w-16 h-16 bg-gradient-to-tr from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-inner">
-                                {user.nickname.charAt(0).toUpperCase()}
+                            <div className="w-16 h-16 rounded-full flex items-center justify-center bg-gray-200 overflow-hidden shadow-inner border-2 border-white">
+                                {user.avatar ? (
+                                    <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-tr from-blue-400 to-purple-500 text-white text-2xl font-bold">
+                                        {user.nickname.charAt(0).toUpperCase()}
+                                    </div>
+                                )}
                             </div>
                             <div>
                                 <h1 className="text-xl font-bold text-gray-800">{user.nickname}</h1>
@@ -1120,8 +1323,12 @@
                         {user.role === 'admin' ? (
                             /* --- ADMIN DASHBOARD (NO GAMEPLAY) --- */
                             <div className="md:col-span-3 flex flex-col items-center justify-center min-h-[500px] bg-white/90 backdrop-blur-md rounded-3xl shadow-2xl border-4 border-gray-800 p-8 text-center animate-in fade-in zoom-in duration-300">
-                                <div className="w-32 h-32 bg-gray-800 rounded-full flex items-center justify-center mb-6 shadow-xl">
-                                    <ShieldCheck size={64} className="text-yellow-400" />
+                                <div className="w-32 h-32 bg-gray-800 rounded-full flex items-center justify-center mb-6 shadow-xl overflow-hidden border-4 border-yellow-400">
+                                    {user.avatar ? (
+                                        <img src={user.avatar} alt="Admin Avatar" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <ShieldCheck size={64} className="text-yellow-400" />
+                                    )}
                                 </div>
                                 <h2 className="text-4xl font-extrabold text-gray-900 mb-4 tracking-tight">TRUNG TÂM ĐIỀU HÀNH</h2>
                                 <p className="text-xl text-gray-600 mb-8 max-w-2xl leading-relaxed">
